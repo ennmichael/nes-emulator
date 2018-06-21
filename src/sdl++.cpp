@@ -33,14 +33,14 @@ Initializer::~Initializer()
         SDL_Quit();
 }
 
-RendererColorGuard::RendererColorLock(Renderer& renderer, Color color)
+RendererColorGuard::RendererColorGuard(Renderer& renderer, Color color)
         : renderer_(renderer)
         , previous_color_(get_render_color(renderer))
 {
         set_render_color(renderer_, color);
 }
 
-RendererColorGuard::~RendererColorLock()
+RendererColorGuard::~RendererColorGuard()
 {
         set_render_color(renderer_, previous_color_);
 }

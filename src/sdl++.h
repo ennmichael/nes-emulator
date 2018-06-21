@@ -12,11 +12,17 @@
 
 namespace Sdl {
 
-using Keycode  = SDL_Keycode;
-using Color    = SDL_Color;
-using Window   = SDL_Window;
+using Keycode = SDL_Keycode;
+using Color = SDL_Color;
+using Window = SDL_Window;
 using Renderer = SDL_Renderer;
-using Texture  = SDL_Texture;
+using Texture = SDL_Texture;
+using Ticks = Uint32;
+using Rect = SDL_Rect;
+using Rects = std::vector<Rect>;
+using Event = SDL_Event;
+using OptionalEvent = std::optional<Event>;
+
 
 namespace Colors {
         Color constexpr white {255, 255, 255, 255};
@@ -51,16 +57,17 @@ using UniqueWindow   = std::unique_ptr<Window, WindowDeleter>;
 using UniqueRenderer = std::unique_ptr<Renderer, RendererDeleter>;
 using UniqueTexture  = std::unique_ptr<Texture, TextureDeleter>;
 
-using Ticks = Uint32;
-using Rect  = SDL_Rect;
-using Rects = std::vector<Rect>;
-using Event = SDL_Event;
-using OptionalEvent = std::optional<Event>;
-
 class Error : public std::exception {
 public:
         char const* what() const noexcept override;
 };
+
+enum class Endianness {
+        big = SDL_BIG_ENDIAN,
+        little = SDL_LIL_ENDIAN
+};
+
+Endianness constexpr endianness {SDL_BYTEORDER}; 
 
 // Calls SDL_Init and SDL_Quit automatically.
 class Initializer {
@@ -81,11 +88,11 @@ class RendererColorGuard {
 public:
         RendererColorGuard(Renderer& Renderer, Color color);
 
-        RendererColorGuard(RendererColorLock const&) = delete;
-        RendererColorGuard(RendererColorLock&&) = delete;
+        RendererColorGuard(RendererColorGuard const&) = delete;
+        RendererColorGuard(RendererColorGuard&&) = delete;
 
-        RendererColorGuard& operator=(RendererColorLock const&) = delete;
-        RendererColorGuard& operator=(RendererColorLock&&) = delete;
+        RendererColorGuard& operator=(RendererColorGuard const&) = delete;
+        RendererColorGuard& operator=(RendererColorGuard&&) = delete;
 
         ~RendererColorGuard();
 
