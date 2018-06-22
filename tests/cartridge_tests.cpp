@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "../../src/cartridge.h"
+#include "../src/cartridge.h"
 #include <array>
 #include <string>
 
@@ -84,6 +84,6 @@ TEST_CASE("Loading a cartridge with a bad footer should fail")
 TEST_CASE("Loading a cartridge that doesn't exist on disk should fail")
 {
         REQUIRE_THROWS_AS(Emulator::Cartridge("this shouldn't exist"s),
-                          Emulator::CantOpenFile);
+                          Emulator::Utils::CantOpenFile);
 }
 

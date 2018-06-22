@@ -8,10 +8,10 @@ MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
 {}
 
 MemoryMapper::MemoryMapper(std::string const& path)
-        : MemoryMapper(read_bytes(path))
+        : MemoryMapper(Utils::read_bytes(path))
 {}
 
-MemoryMapper::MemoryMapper(std::vector<Byte> data) noexcept
+MemoryMapper::MemoryMapper(Bytes data) noexcept
         : data_(std::move(data))
 {}
 
@@ -31,10 +31,10 @@ bool Cartridge::Header::has_chr_ram() const noexcept
 }
 
 Cartridge::Cartridge(std::string const& path)
-        : Cartridge(read_bytes(path))
+        : Cartridge(Utils::read_bytes(path))
 {}
 
-Cartridge::Cartridge(std::vector<Byte> data)
+Cartridge::Cartridge(Bytes data)
 {
         if (data[0] != 'N' ||
             data[1] != 'E' ||
@@ -52,7 +52,7 @@ auto Cartridge::header() const noexcept -> Header
         return header_;
 }
 
-auto Cartridge::parse_header(std::vector<Byte> const& data) -> Header
+auto Cartridge::parse_header(Bytes const& data) -> Header
 {
         if (data.size() < 16)
                 throw InvalidCartridge("Cartridge header too small.");
@@ -93,7 +93,7 @@ Byte Cartridge::memory_mapper_id(ByteBitset first_control_byte,
 }
 
 UniqueMemoryMapper Cartridge::make_memory_mapper(Byte memory_mapper_id,
-                                                 std::vector<Byte> data)
+                                                 Bytes data)
 {
         switch (memory_mapper_id) {
                 case NROM::id: return std::make_unique<NROM>(std::move(data));

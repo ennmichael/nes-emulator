@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "../../src/cpu.h"
+#include "../src/cpu.h"
 
 using namespace std::string_literals;
 

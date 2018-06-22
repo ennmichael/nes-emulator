@@ -2,13 +2,13 @@
 
 using namespace std::string_literals;
 
-namespace Emulator {
+namespace Emulator::Utils {
 
 CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
 
-std::vector<Byte> read_bytes(std::string const& path)
+Bytes read_bytes(std::string const& path)
 {
         std::ifstream ifstream(path,
                              std::ios_base::in |
@@ -17,12 +17,12 @@ std::vector<Byte> read_bytes(std::string const& path)
         if (!ifstream.is_open())
                 throw CantOpenFile(path);
 
-        return read_bytes(ifstream);
+        return Utils::read_bytes(ifstream);
 }
 
-std::vector<Byte> read_bytes(std::ifstream& ifstream)
+Bytes read_bytes(std::ifstream& ifstream)
 {
-        std::vector<Byte> result;
+        Bytes result;
 
         for (;;) {
                 Byte const b = ifstream.get();

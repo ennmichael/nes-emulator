@@ -21,7 +21,7 @@ public:
 class MemoryMapper {
 public:
         MemoryMapper(std::string const& path);
-        MemoryMapper(std::vector<Byte> data) noexcept;
+        MemoryMapper(Bytes data) noexcept;
 
         MemoryMapper(MemoryMapper const& other) = delete;
         MemoryMapper(MemoryMapper&& other) = delete;
@@ -35,7 +35,7 @@ public:
         virtual Byte read_byte(std::size_t address) const noexcept;
 
 private:
-        std::vector<Byte> data_;
+        Bytes data_;
 };
 
 using UniqueMemoryMapper = std::unique_ptr<MemoryMapper>;
@@ -81,7 +81,7 @@ public:
         };
 
         explicit Cartridge(std::string const& path);
-        explicit Cartridge(std::vector<Byte> data);
+        explicit Cartridge(Bytes data);
 
         Header header() const noexcept;
 
@@ -89,12 +89,12 @@ public:
         Byte read(std::size_t address) const noexcept;
 
 private:
-        static Header parse_header(std::vector<Byte> const& data);
+        static Header parse_header(Bytes const& data);
         static Mirroring mirroring(ByteBitset first_control_byte) noexcept;
         static Byte memory_mapper_id(ByteBitset first_control_byte,
                                      ByteBitset second_control_byte) noexcept;
         static UniqueMemoryMapper make_memory_mapper(Byte memory_mapper_id,
-                                                     std::vector<Byte> data);
+                                                     Bytes data);
 
         Header header_;
         UniqueMemoryMapper memory_mapper_ = nullptr;
