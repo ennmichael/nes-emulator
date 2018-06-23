@@ -12,6 +12,9 @@
 
 namespace Emulator {
 
+// TODO Everywhere that I'm using std::size_t, maybe I should actually use unsigned
+//                                unsigned
+
 struct CPU {
         class Memory {
         public:
@@ -24,6 +27,7 @@ struct CPU {
 
                 void write(std::size_t address, Byte byte) noexcept;
                 Byte read(std::size_t address) const noexcept;
+                std::size_t read_address(std::size_t pointer) const noexcept;
 
         private:
                 Cartridge* cartridge_;
@@ -31,12 +35,12 @@ struct CPU {
                 std::array<Byte, internal_ram_size> ram_ {0};
         }; 
         
-        std::size_t constexpr carry_flag = 0;
-        std::size_t constexpr zero_flag = 1;
-        std::size_t constexpr interrupt_disable_flag = 2;
-        std::size_t constexpr break_flag = 4;
-        std::size_t constexpr overflow_flag = 6;
-        std::size_t constexpr negative_flag = 7;  
+        static std::size_t constexpr carry_flag = 0;
+        static std::size_t constexpr zero_flag = 1;
+        static std::size_t constexpr interrupt_disable_flag = 2;
+        static std::size_t constexpr break_flag = 4;
+        static std::size_t constexpr overflow_flag = 6;
+        static std::size_t constexpr negative_flag = 7;  
 
         CPU(Cartridge& cartridge, PPU& ppu) noexcept;
 
@@ -46,22 +50,20 @@ struct CPU {
         Byte a = 0;
         Byte x = 0;
         Byte y = 0;
-        ByteBitset p(0x34); // TODO This doesn't seem correct
+        ByteBitset p = 0x34; // TODO This doesn't seem correct
 
         void execute(Bytes const& program);
 
         bool status(std::size_t flag) const noexcept;
         void status(std::size_t flag, bool value) noexcept;
 
-        void modify_carry_flag(unsigned operation_result) noexcept;
-        void modify_zero_flag(unsigned operation_result) noexcept;
-        void modify_overflow_flag(unsigned operation_result) noexcept;
-        void modify_negative_flag(unsigned operation_result) noexcept; 
+        void update_carry_flag(unsigned operation_result) noexcept;
+        void update_zero_flag(unsigned operation_result) noexcept;
+        void update_overflow_flag(unsigned operation_result) noexcept;
+        void update_negative_flag(unsigned operation_result) noexcept; 
 };
 
-using Instruction = std::variant<std::function<void(CPU&)>,
-                                 std::function<void(CPU&, Byte)>,
-                                 std::function<void(CPU&, Byte, Byte)>>;
+using Instruction = std::function<void(CPU& cpu, Bytes const& program)>;
 
 Instruction translate_opcode(Byte opcode);
 

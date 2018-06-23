@@ -1,3 +1,9 @@
+'''
+Credit to http://skilldrick.github.io/easy6502.
+This script converts the hexdumps from Nick's assembler so
+I can use them to test the CPU.
+''' 
+
 def each(n, l):
     for i, e in enumerate(l):
         res = l[i*n:(i+1)*n]

@@ -69,7 +69,7 @@ enum class Endianness {
 
 Endianness constexpr endianness {SDL_BYTEORDER}; 
 
-// Calls SDL_Init and SDL_Quit automatically.
+// Calls SDL_Init AND SDL_Quit automatically.
 class Initializer {
 public:
         Initializer();

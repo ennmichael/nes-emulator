@@ -1,4 +1,6 @@
 #include "utils.h"
+#include "sdl++.h"
+#include <climits>
 
 using namespace std::string_literals;
 
@@ -35,6 +37,20 @@ Bytes read_bytes(std::ifstream& ifstream)
         // or if I read the file multiple bytes at a time.
 
         return result;
+}
+
+unsigned combine_little_endian(Byte low, Byte high) noexcept
+{
+        if constexpr (Sdl::endianness == Sdl::Endianness::big)
+                std::swap(low, high);
+
+        return static_cast<unsigned>(low) &
+               (static_cast<unsigned>(high) >> CHAR_BIT);
+}
+
+int twos_complement(Byte b) noexcept
+{
+        return (b < 128) ? b : static_cast<int>(b) - byte_max;
 }
 
 }
