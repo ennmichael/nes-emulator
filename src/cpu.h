@@ -12,8 +12,7 @@
 
 namespace Emulator {
 
-class CPU {
-public:
+struct CPU {
         class Memory {
         public:
                 static std::size_t constexpr adressable_size = 0xFFFF;
@@ -37,55 +36,34 @@ public:
         std::size_t constexpr interrupt_disable_flag = 2;
         std::size_t constexpr break_flag = 4;
         std::size_t constexpr overflow_flag = 6;
-        std::size_t constexpr negative_flag = 7; 
+        std::size_t constexpr negative_flag = 7;  
 
-        using Instruction = std::variant<std::function<void(CPU&)>,
-                                         std::function<void(CPU&, Byte)>,
-                                         std::function<void(CPU&, Byte, Byte)>>;
-        using InstructionSet = std::unordered_map<Byte, Instruction>;
+        CPU(Cartridge& cartridge, PPU& ppu) noexcept;
 
-        static InstructionSet standard_instruction_set();
-
-        CPU(Cartridge& cartridge, PPU& ppu, InstructionSet instruction_set) noexcept;
-        CPU(Cartridge& cartridge, PPU& ppu);
+        Memory memory;
+        unsigned pc = 0;
+        Byte sp = 0;
+        Byte a = 0;
+        Byte x = 0;
+        Byte y = 0;
+        ByteBitset p(0x34); // TODO This doesn't seem correct
 
         void execute(Bytes const& program);
 
-        unsigned pc() const noexcept;
-        Byte sp() const noexcept;
-        Byte a() const noexcept;
-        Byte x() const noexcept;
-        Byte y() const noexcept;
-
         bool status(std::size_t flag) const noexcept;
-
-private:
-        using RawInstruction = void (*)(CPU& cpu, Byte operand);
-
         void status(std::size_t flag, bool value) noexcept;
+
         void modify_carry_flag(unsigned operation_result) noexcept;
         void modify_zero_flag(unsigned operation_result) noexcept;
         void modify_overflow_flag(unsigned operation_result) noexcept;
-        void modify_negative_flag(unsigned operation_result) noexcept;
-
-        static void adc(CPU& cpu, Byte operand) noexcept;
-        static void and(CPU& cpu, Byte operand) noexcept;
-
-        static Instruction immediate(RawInstruction raw);
-        static Instruction zero_page(RawInstruction raw);
-        static Instruction zero_page_x(RawInstruction raw);
-        static Instruction absolute(RawInstruction raw);
-
-        static Instruction instruction_for_opcode(Byte opcode);
-
-        Memory memory_;
-        unsigned pc_ = 0;
-        Byte sp_ = 0;
-        Byte a_ = 0;
-        Byte x_ = 0;
-        Byte y_ = 0;
-        ByteBitset p_(0x34); // TODO Is this correct?
+        void modify_negative_flag(unsigned operation_result) noexcept; 
 };
+
+using Instruction = std::variant<std::function<void(CPU&)>,
+                                 std::function<void(CPU&, Byte)>,
+                                 std::function<void(CPU&, Byte, Byte)>>;
+
+Instruction translate_opcode(Byte opcode);
 
 }
 
