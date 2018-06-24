@@ -7,6 +7,7 @@
 #include <vector>
 #include <fstream>
 #include <stdexcept>
+#include <type_traits>
 
 namespace Emulator {
 
@@ -19,6 +20,10 @@ using ByteBitset = std::bitset<CHAR_BIT>;
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
 
 namespace Utils {
+
+template <class F, class... Args>
+bool constexpr returns_void =
+        std::is_same_v<std::invoke_result_t<F, Args...>, void>;
 
 class CantOpenFile : public std::runtime_error {
 public:

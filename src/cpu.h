@@ -9,11 +9,19 @@
 #include <unordered_map>
 #include <functional>
 #include <variant>
+#include <stdexcept>
 
 namespace Emulator {
 
 // TODO Everywhere that I'm using std::size_t, maybe I should actually use unsigned
 //                                unsigned
+
+class UnknownOpcode : std::runtime_error {
+public:
+        explicit UnknownOpcode(Byte opcode) noexcept;
+};
+
+using Instruction = std::function<void(CPU& cpu, Bytes const& program)>;
 
 struct CPU {
         class Memory {
@@ -42,6 +50,8 @@ struct CPU {
         static std::size_t constexpr overflow_flag = 6;
         static std::size_t constexpr negative_flag = 7;  
 
+        static Instruction translate_opcode(Byte opcode);
+
         CPU(Cartridge& cartridge, PPU& ppu) noexcept;
 
         Memory memory;
@@ -53,6 +63,7 @@ struct CPU {
         ByteBitset p = 0x34; // TODO This doesn't seem correct
 
         void execute(Bytes const& program);
+        void execute_next_byte(Bytes const& program);
 
         bool status(std::size_t flag) const noexcept;
         void status(std::size_t flag, bool value) noexcept;
@@ -60,12 +71,8 @@ struct CPU {
         void update_carry_flag(unsigned operation_result) noexcept;
         void update_zero_flag(unsigned operation_result) noexcept;
         void update_overflow_flag(unsigned operation_result) noexcept;
-        void update_negative_flag(unsigned operation_result) noexcept; 
+        void update_negative_flag(unsigned operation_result) noexcept;
 };
-
-using Instruction = std::function<void(CPU& cpu, Bytes const& program)>;
-
-Instruction translate_opcode(Byte opcode);
 
 }
 

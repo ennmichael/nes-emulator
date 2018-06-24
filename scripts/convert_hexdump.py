@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 '''
 Credit to http://skilldrick.github.io/easy6502.
 This script converts the hexdumps from Nick's assembler so
