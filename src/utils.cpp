@@ -48,9 +48,37 @@ unsigned combine_little_endian(Byte low, Byte high) noexcept
                (static_cast<unsigned>(high) >> CHAR_BIT);
 }
 
-int twos_complement(Byte b) noexcept
+namespace
 {
-        return (b < 128) ? b : static_cast<int>(b) - byte_max;
+        unsigned constexpr sign_bit_mask = 0x80u;
+        unsigned constexpr zeroth_bit_mask = 0x01u;
+}
+
+bool sign_bit(unsigned value) noexcept
+{
+        return value & sign_bit_mask;
+}
+
+unsigned sign_bit(unsigned old_value, bool new_bit) noexcept
+{
+        return set_bit(old_value, sign_bit_mask, new_bit);
+}
+
+bool zeroth_bit(unsigned value) noexcept
+{
+        return value & zeroth_bit_mask;
+}
+
+unsigned zeroth_bit(unsigned old_value, bool new_bit) noexcept
+{
+        return set_bit(old_value, zeroth_bit_mask, new_bit);
+}
+
+unsigned set_bit(unsigned old_value, unsigned mask, bool new_bit) noexcept
+{
+        return (new_bit) ?
+                old_value | mask :
+                old_value & ~mask;
 }
 
 }
