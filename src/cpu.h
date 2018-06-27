@@ -17,9 +17,8 @@
  * I wish I could move the instructions out of the class, still have them work,
  * and keep the registers encapsulated (i.e. CPU doesn't become a struct).
  * This could be done via return values from the instructions?
- * The most important thing might be to fix the repetition between some of the
- * instructions' definitions in an intuitive way that doesn't suck.
- * [LDA, LDX, etc.], [TAX, TAY, TXA, etc.]
+ * Maybe have a struct Registers and pass that into the instructions, and
+ * inject the instruction set into the CPU?
  */
 
 namespace Emulator {
@@ -31,7 +30,7 @@ public:
 
 // TODO Rename read -> read_byte, write -> write_byte ???????
 
-class CPU {
+struct CPU {
 public:
         class Memory {
         public:
@@ -50,10 +49,22 @@ public:
                 Cartridge* cartridge_;
                 PPU* ppu_;
                 std::array<Byte, internal_ram_size> ram_ {0};
-        }; 
-        
-        // We'll probably have a Stack class taking a reference to Memory?
-        // Also taking a reference to sp_?
+        };
+
+        class Stack {
+        public:
+                Stack(Memory& memory, unsigned& sp) noexcept;
+
+                void push(Byte value) noexcept;
+                void push(unsigned value) noexcept;
+
+                Byte pull_byte() noexcept;
+                unsigned pull_address() noexcept;
+
+        private:
+                Memory* memory_;
+                unsigned* sp_;
+        };
 
         static unsigned constexpr carry_flag = 0;
         static unsigned constexpr zero_flag = 1;
@@ -133,66 +144,84 @@ private:
         static bool bvs(CPU const& cpu) noexcept;
         static bool bvc(CPU const& cpu) noexcept;
 
-        static void adc(CPU& cpu, Byte operand) noexcept;
-        static void sbc(CPU& cpu, Byte operand) noexcept;
-
-        static void bitwise_and(CPU& cpu, Byte operand) noexcept;
-
-        static Byte asl(CPU& cpu, Byte operand) noexcept;
-        static void bit(CPU& cpu, Byte operand) noexcept;
-        static void brk(CPU& cpu, Byte operand) noexcept;
         static void clc(CPU& cpu, Byte operand) noexcept;
         static void cli(CPU& cpu, Byte operand) noexcept;
         static void clv(CPU& cpu, Byte operand) noexcept;
+        static void sec(CPU& cpu, Byte operand) noexcept;
+        static void sei(CPU& cpu, Byte operand) noexcept;
+        
         static void cmp(CPU& cpu, Byte operand) noexcept;
         static void cpx(CPU& cpu, Byte operand) noexcept;
         static void cpy(CPU& cpu, Byte operand) noexcept;
-        static Byte dec(CPU& cpu, Byte operand) noexcept;
+        void compare(Byte reg, Byte operand) noexcept;
+
+        static void adc(CPU& cpu, Byte operand) noexcept;
+        static void sbc(CPU& cpu, Byte operand) noexcept;
+        static void bit(CPU& cpu, Byte operand) noexcept;
+        static void bitwise_and(CPU& cpu, Byte operand) noexcept;
+        static void brk(CPU& cpu, Byte operand) noexcept;
         static void dex(CPU& cpu, Byte operand) noexcept;
         static void dey(CPU& cpu, Byte operand) noexcept;
         static void eor(CPU& cpu, Byte operand) noexcept;
-        static Byte inc(CPU& cpu, Byte operand) noexcept;
         static void inx(CPU& cpu, Byte operand) noexcept;
         static void iny(CPU& cpu, Byte operand) noexcept;
+        static void jsr(CPU& cpu, Byte operand) noexcept;
+
         static void absolute_jmp(CPU& cpu, Bytes const& program) noexcept;
         static void indirect_jmp(CPU& cpu, Bytes const& program) noexcept;
-        static void jsr(CPU& cpu, Byte operand) noexcept;
 
         static void lda(CPU& cpu, Byte operand) noexcept;
         static void ldx(CPU& cpu, Byte operand) noexcept;
         static void ldy(CPU& cpu, Byte operand) noexcept;
+        void load(Byte& reg, Byte operand) noexcept;
 
-        static Byte lsr(CPU& cpu, Byte operand) noexcept;
-        static void nop(CPU& cpu, Byte operand) noexcept;
-        static void ora(CPU& cpu, Byte operand) noexcept;
         static void pha(CPU& cpu, Byte operand) noexcept;
         static void php(CPU& cpu, Byte operand) noexcept;
         static void pla(CPU& cpu, Byte operand) noexcept;
         static void plp(CPU& cpu, Byte operand) noexcept;
-        static Byte rol(CPU& cpu, Byte operand) noexcept;
-        static Byte ror(CPU& cpu, Byte operand) noexcept;
+
+        static void nop(CPU& cpu, Byte operand) noexcept;
+        static void ora(CPU& cpu, Byte operand) noexcept; 
         static void rti(CPU& cpu, Byte operand) noexcept;
         static void rts(CPU& cpu, Byte operand) noexcept;
-        static void sec(CPU& cpu, Byte operand) noexcept;
-        static void sei(CPU& cpu, Byte operand) noexcept;
+
+        static Byte dec(CPU& cpu, Byte operand) noexcept;
+        static Byte inc(CPU& cpu, Byte operand) noexcept;
+        static Byte lsr(CPU& cpu, Byte operand) noexcept;
+        static Byte rol(CPU& cpu, Byte operand) noexcept;
+        static Byte ror(CPU& cpu, Byte operand) noexcept;
+        static Byte asl(CPU& cpu, Byte operand) noexcept; 
+        
         static Byte sta(CPU& cpu) noexcept;
         static Byte stx(CPU& cpu) noexcept;
         static Byte sty(CPU& cpu) noexcept;
+
         static void tax(CPU& cpu, Byte operand) noexcept;
         static void tay(CPU& cpu, Byte operand) noexcept;
         static void tsx(CPU& cpu, Byte operand) noexcept;
         static void txa(CPU& cpu, Byte operand) noexcept;
         static void txs(CPU& cpu, Byte operand) noexcept;
         static void tya(CPU& cpu, Byte operand) noexcept;
-        static void compare(CPU& cpu, Byte reg, Byte operand) noexcept;
-        
+
+        void transfer(Byte& reg, Byte value) noexcept;
+
         void write(unsigned address, Byte byte) noexcept;
         void status(unsigned flag, bool value) noexcept;
 
-        template <class IntegerType>
-        void update_zero_flag(IntegerType i) noexcept;
+        void update_zero_flag(int result) noexcept;
         void update_overflow_flag(unsigned old_value, unsigned result) noexcept;
         void update_negative_flag(unsigned result) noexcept;
+
+        void update_overflow_flag(int old_value, int result) noexcept
+        {
+                update_overflow_flag(reinterpret_cast<unsigned>(old_value),
+                                     reinterpret_cast<unsigned>(result));
+        }
+
+        void update_negative_flag(int result) noexcept
+        {
+                update_negative_flag(reinterpret_cast<unsigned>(result));
+        }
 
         Memory memory_;
         unsigned pc_ = 0;
@@ -373,12 +402,6 @@ Instruction CPU::indirect_y(Operation operation) // Indirect indexed
                 execute_on_memory(operation, cpu, address);
                 cpu.pc_ += 2;
         };
-}
-
-template <class IntegerType>
-void CPU::update_zero_flag(IntegerType i) noexcept
-{
-        status(zero_flag, i == 0);
 }
 
 }

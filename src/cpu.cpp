@@ -2,6 +2,8 @@
 #include <utility>
 #include <string>
 
+// TODO: Define instructions in order of declaration
+
 using namespace std::string_literals;
 
 namespace Emulator {
@@ -287,15 +289,14 @@ void CPU::adc(CPU& cpu, Byte operand) noexcept
 
 void CPU::sbc(CPU& cpu, Byte operand) noexcept
 {
-        int const signed_result = cpu.a_ - operand - !status(carry_flag);
-        auto const unsigned_result = reinterpret_cast<unsigned>(signed_result);
+        int const result = cpu.a_ - operand - !status(carry_flag);
 
-        cpu.status(carry_flag, signed_result >= 0);
-        cpu.update_overflow_flag(unsigned_result);
-        cpu.update_negative_flag(unsigned_result);
-        cpu.update_zero_flag(signed_result);
+        cpu.status(carry_flag, result >= 0);
+        cpu.update_overflow_flag(result, cpu.a_);
+        cpu.update_negative_flag(result);
+        cpu.update_zero_flag(result);
 
-        cpu.a_ = static_cast<Byte>(unsigned_result);
+        cpu.a_ = reinterpret_cast<Byte>(result);
 }
 
 void CPU::bitwise_and(CPU& cpu, Byte operand) noexcept
@@ -349,17 +350,17 @@ void CPU::clv(CPU& cpu, Byte operand) noexcept
 
 void CPU::cmp(CPU& cpu, Byte operand) noexcept
 {
-        compare(cpu, cpu.a_, operand);
+        cpu.compare(cpu.a_, operand);
 }
 
 void CPU::cpx(CPU& cpu, Byte operand) noexcept
 {
-        compare(cpu, cpu.x_, operand);
+        cpu.compare(cpu.x_, operand);
 }
 
 void CPU::cpy(CPU& cpu, Byte operand) noexcept
 {
-        compare(cpu, cpu.y_, operand);
+        cpu.compare(cpu.y_, operand);
 }
 
 Byte CPU::dec(CPU& cpu, Byte operand) noexcept
@@ -427,26 +428,17 @@ void CPU::jsr(CPU& cpu, Byte operand) noexcept
 
 void CPU::lda(CPU& cpu, Byte operand) noexcept
 {
-        cpu.a_ = operand;
-
-        cpu.update_zero_flag(operand);
-        cpu.update_negative_flag(operand);
+        cpu.transfer(cpu.a_, operand);
 }
 
 void CPU::ldx(CPU& cpu, Byte operand) noexcept
 {
-        cpu.x_ = operand;
-
-        cpu.update_zero_flag(operand);
-        cpu.update_negative_flag(operand);
+        cpu.transfer(cpu.x_, operand);
 }
 
 void CPU::ldy(CPU& cpu, Byte operand) noexcept
 {
-        cpu.y_ = operand;
-
-        cpu.update_zero_flag(operand);
-        cpu.update_negative_flag(operand);
+        cpu.transfer(cpu.y_, operand);
 }
 
 Byte CPU::lsr(CPU& cpu, Byte operand) noexcept
@@ -454,8 +446,7 @@ Byte CPU::lsr(CPU& cpu, Byte operand) noexcept
         Byte const result = operand >> 1;
 
         cpu.status(carry_flag, Utils::zeroth_bit(result));
-        cpu.update_zero_flag(result);
-        cpu.update_negative_flag(result);
+        cpu.update_transfer_flags(result);
 
         return result;
 }
@@ -586,19 +577,21 @@ void CPU::txs(CPU& cpu, Byte operand) noexcept
 
 void CPU::tya(CPU& cpu, Byte operand) noexcept
 {
-        cpu.a_ = cpu.y_;
-
-        cpu.update_zero_flag(cpu.a_);
-        cpu.update_negative_flag(cpu.a_);
+        cpu.a_ = cpu.transfer(cpu.y_);
 }
 
-void CPU::compare(CPU& cpu, Byte reg, Byte operand) noexcept
+void CPU::compare(Byte reg, Byte operand) noexcept
 {
         int const result = reg - operand;
 
-        cpu.status(carry_flag, result >= 0);
-        cpu.update_zero_flag(result);
-        cpu.update_negative_flag(reinterpret_cast<unsigned>(result));
+        status(carry_flag, result >= 0);
+        update_zero_flag(result);
+        update_negative_flag(result);
+}
+
+void CPU::update_zero_flag(int result) noexcept
+{
+        status(zero_flag, result == 0);
 }
 
 void CPU::update_overflow_flag(unsigned old_value, unsigned result) noexcept
@@ -608,7 +601,7 @@ void CPU::update_overflow_flag(unsigned old_value, unsigned result) noexcept
 
 void CPU::update_negative_flag(unsigned result) noexcept
 {
-        status(negative_flag,  Utils::sign_bit(old_value));
+        status(negative_flag, Utils::sign_bit(old_value));
 }
 
 void CPU::write(unsigned address, Byte byte) noexcept
