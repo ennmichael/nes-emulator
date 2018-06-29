@@ -15,7 +15,7 @@ TEST_CASE("NEStress header loading test")
         CHECK(header.has_battery_backed_sram == false);
         CHECK(header.has_trainer == false);
         CHECK(header.mirroring == Emulator::Mirroring::vertical);
-        CHECK(header.memory_mapper_id == Emulator::NROM::id);
+        CHECK(header.ram_mapper_id == Emulator::NROM::id);
         CHECK(header.has_chr_ram() == false);
 }
 
@@ -29,7 +29,7 @@ TEST_CASE("The Legend of Zelda header loading test")
         CHECK(header.has_battery_backed_sram == true);
         CHECK(header.has_trainer == false);
         CHECK(header.mirroring == Emulator::Mirroring::horizontal);
-        CHECK(header.memory_mapper_id == Emulator::MMC1::id);
+        CHECK(header.ram_mapper_id == Emulator::MMC1::id);
         CHECK(header.has_chr_ram() == true);
 }
 
@@ -43,7 +43,7 @@ TEST_CASE("Super Mario Bros. 1 header loading test")
         CHECK(header.has_battery_backed_sram == false);
         CHECK(header.has_trainer == false);
         CHECK(header.mirroring == Emulator::Mirroring::vertical);
-        CHECK(header.memory_mapper_id == Emulator::NROM::id);
+        CHECK(header.ram_mapper_id == Emulator::NROM::id);
         CHECK(header.has_chr_ram() == false);
 }
 
@@ -57,7 +57,7 @@ TEST_CASE("Super Mario Bros. 2 header loading test")
         CHECK(header.has_battery_backed_sram == false);
         CHECK(header.has_trainer == false);
         CHECK(header.mirroring == Emulator::Mirroring::horizontal);
-        CHECK(header.memory_mapper_id == Emulator::MMC3::id);
+        CHECK(header.ram_mapper_id == Emulator::MMC3::id);
         CHECK(header.has_chr_ram() == false);
 }
 
@@ -71,7 +71,7 @@ TEST_CASE("Super Mario Bros. 3 header loading test")
         CHECK(header.has_battery_backed_sram == false);
         CHECK(header.has_trainer == false);
         CHECK(header.mirroring == Emulator::Mirroring::horizontal);
-        CHECK(header.memory_mapper_id == Emulator::MMC3::id);
+        CHECK(header.ram_mapper_id == Emulator::MMC3::id);
         CHECK(header.has_chr_ram() == false);
 }
 

@@ -4,11 +4,10 @@ project(nes-emulator)
 macro(add_compile_options target)
         target_compile_options(${target} PRIVATE "-Wall")
         target_compile_options(${target} PRIVATE "-Wextra")
-        target_compile_options(${target} PRIVATE "-pedantic")
         target_compile_options(${target} PRIVATE "-std=c++17")
 endmacro()
 
-add_library(nes-emulator-lib src/sdl++.cpp src/cpu.cpp src/ppu.cpp src/cartridge.cpp src/utils.cpp)
+add_library(nes-emulator-lib src/sdl++.cpp src/cpu.cpp src/ppu.cpp src/cartridge.cpp src/utils.cpp src/instruction_set.cpp)
 add_compile_options(nes-emulator-lib)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${nes-emulator_SOURCE_DIR}/cmake")

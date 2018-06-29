@@ -10,6 +10,11 @@ CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
 
+Byte to_byte(ByteBitset bitset) noexcept
+{
+        return static_cast<Byte>(bitset.to_ulong());
+}
+
 Bytes read_bytes(std::string const& path)
 {
         std::ifstream ifstream(path,
@@ -39,15 +44,6 @@ Bytes read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-unsigned combine_little_endian(Byte low, Byte high) noexcept
-{
-        if constexpr (Sdl::endianness == Sdl::Endianness::big)
-                std::swap(low, high);
-
-        return static_cast<unsigned>(low) &
-               (static_cast<unsigned>(high) >> CHAR_BIT);
-}
-
 namespace
 {
         unsigned constexpr sign_bit_mask = 0x80u;
@@ -59,9 +55,9 @@ bool sign_bit(unsigned value) noexcept
         return value & sign_bit_mask;
 }
 
-unsigned sign_bit(unsigned old_value, bool new_bit) noexcept
+unsigned set_sign_bit(unsigned old_value, bool new_bit) noexcept
 {
-        return set_bit(old_value, sign_bit_mask, new_bit);
+        return set_bits(old_value, sign_bit_mask, new_bit);
 }
 
 bool zeroth_bit(unsigned value) noexcept
@@ -69,16 +65,42 @@ bool zeroth_bit(unsigned value) noexcept
         return value & zeroth_bit_mask;
 }
 
-unsigned zeroth_bit(unsigned old_value, bool new_bit) noexcept
+unsigned set_zeroth_bit(unsigned old_value, bool new_bit) noexcept
 {
-        return set_bit(old_value, zeroth_bit_mask, new_bit);
+        return set_bits(old_value, zeroth_bit_mask, new_bit);
 }
 
-unsigned set_bit(unsigned old_value, unsigned mask, bool new_bit) noexcept
+unsigned set_bits(unsigned old_value, unsigned mask, bool value) noexcept
 {
-        return (new_bit) ?
+        return (value) ?
                 old_value | mask :
                 old_value & ~mask;
+}
+
+namespace
+{
+        unsigned constexpr low_byte_mask  = 0x00FFu;
+        unsigned constexpr high_byte_mask = 0xFF00u;
+}
+
+BytePair split_address(unsigned pointer) noexcept
+{
+        return {
+                .low = static_cast<Byte>(pointer & low_byte_mask),
+                .high = static_cast<Byte>((pointer & high_byte_mask) >> CHAR_BIT)
+        };
+}
+
+unsigned create_address(Byte low, Byte high) noexcept
+{
+        return static_cast<unsigned>(low) |
+               (static_cast<unsigned>(high) << CHAR_BIT);
+}
+
+unsigned create_address(BytePair byte_pair) noexcept
+{
+        auto const& [low, high] = byte_pair;
+        return create_address(low, high);
 }
 
 }

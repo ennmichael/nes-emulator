@@ -8,9 +8,9 @@
 
 namespace Emulator {
 
-class MemoryMapperNotSupported : public std::runtime_error {
+class RAMMapperNotSupported : public std::runtime_error {
 public:
-        explicit MemoryMapperNotSupported(Byte id) noexcept;
+        explicit RAMMapperNotSupported(Byte id) noexcept;
 };
 
 class InvalidCartridge : public std::runtime_error {
@@ -18,18 +18,19 @@ public:
         using std::runtime_error::runtime_error;
 };
 
-class MemoryMapper {
+// FIXME This is not what this interface should look like
+class RAMMapper {
 public:
-        MemoryMapper(std::string const& path);
-        MemoryMapper(Bytes data) noexcept;
+        RAMMapper(std::string const& path);
+        RAMMapper(Bytes data) noexcept;
 
-        MemoryMapper(MemoryMapper const& other) = delete;
-        MemoryMapper(MemoryMapper&& other) = delete;
+        RAMMapper(RAMMapper const& other) = delete;
+        RAMMapper(RAMMapper&& other) = delete;
 
-        MemoryMapper& operator=(MemoryMapper const& other) = delete;
-        MemoryMapper& operator=(MemoryMapper&& other) = delete;
+        RAMMapper& operator=(RAMMapper const& other) = delete;
+        RAMMapper& operator=(RAMMapper&& other) = delete;
 
-        virtual ~MemoryMapper() = default;
+        virtual ~RAMMapper() = default;
 
         virtual void write_byte(std::size_t address, Byte byte) noexcept;
         virtual Byte read_byte(std::size_t address) const noexcept;
@@ -38,27 +39,27 @@ private:
         Bytes data_;
 };
 
-using UniqueMemoryMapper = std::unique_ptr<MemoryMapper>;
+using UniqueRAMMapper = std::unique_ptr<RAMMapper>;
 
-class NROM : public MemoryMapper {
+class NROM : public RAMMapper {
 public:
         static Byte constexpr id = 0;
 
-        using MemoryMapper::MemoryMapper;
+        using RAMMapper::RAMMapper;
 };
 
-class MMC1 : public MemoryMapper {
+class MMC1 : public RAMMapper {
 public:
        static Byte constexpr id = 1;
 
-       using MemoryMapper::MemoryMapper;
+       using RAMMapper::RAMMapper;
 };
 
-class MMC3 : public MemoryMapper {
+class MMC3 : public RAMMapper {
 public:
         static Byte constexpr id = 4;
 
-        using MemoryMapper::MemoryMapper;
+        using RAMMapper::RAMMapper;
 };
 
 enum class Mirroring {
@@ -72,7 +73,7 @@ public:
         struct Header {
                 Byte num_prg_rom_banks = 0;
                 Byte num_chr_rom_banks = 0;
-                Byte memory_mapper_id = NROM::id;
+                Byte ram_mapper_id = NROM::id;
                 bool has_battery_backed_sram = false;
                 bool has_trainer = false;
                 Mirroring mirroring = Mirroring::horizontal;
@@ -91,13 +92,13 @@ public:
 private:
         static Header parse_header(Bytes const& data);
         static Mirroring mirroring(ByteBitset first_control_byte) noexcept;
-        static Byte memory_mapper_id(ByteBitset first_control_byte,
+        static Byte ram_mapper_id(ByteBitset first_control_byte,
                                      ByteBitset second_control_byte) noexcept;
-        static UniqueMemoryMapper make_memory_mapper(Byte memory_mapper_id,
+        static UniqueRAMMapper make_ram_mapper(Byte ram_mapper_id,
                                                      Bytes data);
 
         Header header_;
-        UniqueMemoryMapper memory_mapper_ = nullptr;
+        UniqueRAMMapper ram_mapper_ = nullptr;
 };
 
 }

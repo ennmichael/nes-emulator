@@ -1,32 +1,40 @@
 #include "catch.hpp"
 #include "../src/utils.h"
-#include <vector>
 #include <utility>
+#include <array>
 
-TEST_CASE("Utils::combine_little_endian works")
+namespace
 {
-        struct Example {
-                Emulator::Byte lower;
-                Emulator::Byte higher;
-                unsigned little_endian;
-                unsigned big_endian;
-        };
 
-        std::vector<Example> const examples {
-                {0x00, 0xA1, 161u, 41216u},
-                {0x12, 0x34, 13330u, 4660u},
-                {0x11, 0xDF, 57105u, 4575u},
-                {0x7F, 0x21, 8575u, 32545u}
-        };
+struct TestExample {
+        Emulator::Byte low;
+        Emulator::Byte high;
+        unsigned address;
+};
 
-        for (auto const& [lower, higher, little_endian, big_endian] : examples) {
-                unsigned const value =
-                        Emulator::Utils::combine_little_endian(lower, higher);
+std::array constexpr examples {
+        TestExample {0x00, 0xA1, 0xA100},
+        TestExample {0x12, 0x34, 0x3412},
+        TestExample {0x11, 0xDF, 0xDF11},
+        TestExample {0x7F, 0x21, 0x217F}
+};
 
-                if constexpr (Sdl::endianness == Sdl::Endianness::little)
-                        REQUIRE(value == little_endian);
-                else
-                        REQUIRE(value == big_endian);
+}
+
+TEST_CASE("Utils::split_address works")
+{
+        for (auto const& [low, high, address] : examples) {
+                auto const& [calculated_low, calculated_high] =
+                        Emulator::Utils::split_address(address);
+
+                CHECK(calculated_low == low);
+                CHECK(calculated_high == high);
         }
+}
+
+TEST_CASE("Utils::create_address works")
+{
+        for (auto const& [low, high, address] : examples)
+                CHECK(Emulator::Utils::create_address(low, high) == address);
 }
 

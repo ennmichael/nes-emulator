@@ -3,24 +3,24 @@
 
 namespace Emulator {
 
-MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
-        : runtime_error("Memory mapper " + std::to_string(id) + " not supported.")
+RAMMapperNotSupported::RAMMapperNotSupported(Byte id) noexcept
+        : runtime_error("RAM mapper " + std::to_string(id) + " not supported.")
 {}
 
-MemoryMapper::MemoryMapper(std::string const& path)
-        : MemoryMapper(Utils::read_bytes(path))
+RAMMapper::RAMMapper(std::string const& path)
+        : RAMMapper(Utils::read_bytes(path))
 {}
 
-MemoryMapper::MemoryMapper(Bytes data) noexcept
+RAMMapper::RAMMapper(Bytes data) noexcept
         : data_(std::move(data))
 {}
 
-void MemoryMapper::write_byte(std::size_t address, Byte byte) noexcept
+void RAMMapper::write_byte(std::size_t address, Byte byte) noexcept
 {
         data_[address] = byte;
 }
 
-Byte MemoryMapper::read_byte(std::size_t address) const noexcept
+Byte RAMMapper::read_byte(std::size_t address) const noexcept
 {
         return data_[address];
 }
@@ -43,7 +43,7 @@ Cartridge::Cartridge(Bytes data)
                 throw InvalidCartridge("Invalid cartridge header footprint.");
 
         header_ = parse_header(data);
-        memory_mapper_ = make_memory_mapper(header_.memory_mapper_id,
+        ram_mapper_ = make_ram_mapper(header_.ram_mapper_id,
                                             std::move(data));
 }
 
@@ -65,7 +65,7 @@ auto Cartridge::parse_header(Bytes const& data) -> Header
         ByteBitset const first_control_byte(data[6]);
         ByteBitset const second_control_byte(data[7]);
 
-        header.memory_mapper_id = memory_mapper_id(first_control_byte,
+        header.ram_mapper_id = ram_mapper_id(first_control_byte,
                                                    second_control_byte);
         header.has_battery_backed_sram = first_control_byte.test(1);
         header.has_trainer = first_control_byte.test(2);
@@ -83,7 +83,7 @@ Mirroring Cartridge::mirroring(ByteBitset first_control_byte) noexcept
         return Mirroring::horizontal;
 }
 
-Byte Cartridge::memory_mapper_id(ByteBitset first_control_byte,
+Byte Cartridge::ram_mapper_id(ByteBitset first_control_byte,
                                  ByteBitset second_control_byte) noexcept
 {
         first_control_byte >>= 4;
@@ -92,16 +92,16 @@ Byte Cartridge::memory_mapper_id(ByteBitset first_control_byte,
         return static_cast<Byte>(result.to_ulong());
 }
 
-UniqueMemoryMapper Cartridge::make_memory_mapper(Byte memory_mapper_id,
+UniqueRAMMapper Cartridge::make_ram_mapper(Byte ram_mapper_id,
                                                  Bytes data)
 {
-        switch (memory_mapper_id) {
+        switch (ram_mapper_id) {
                 case NROM::id: return std::make_unique<NROM>(std::move(data));
                 case MMC1::id: return std::make_unique<MMC1>(std::move(data));
                 case MMC3::id: return std::make_unique<MMC3>(std::move(data));
         }
         
-        throw MemoryMapperNotSupported(memory_mapper_id);
+        throw RAMMapperNotSupported(ram_mapper_id);
 }
 
 }
