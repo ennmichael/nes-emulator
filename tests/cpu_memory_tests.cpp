@@ -1,6 +1,5 @@
 #include "catch.hpp"
 #include "../src/cpu.h"
-#include "../src/utils.h"
 
 using namespace std::string_literals;
 
@@ -10,7 +9,7 @@ void require_mirrored_reading_works(Emulator::CPU::RAM const& ram)
              i < Emulator::CPU::RAM::real_size +
                  Emulator::CPU::RAM::mirrors_size;
              ++i) {
-                auto const mirrored_adress = i - Emulator::CPU::RAM::ram_mirrors_size;
+                auto const mirrored_adress = i - Emulator::CPU::RAM::real_size;
                 REQUIRE(ram.read_byte(i) == ram.read_byte(mirrored_adress));
         }
 }
@@ -32,8 +31,7 @@ TEST_CASE("Internal Emulator::CPU ram works")
                      i < Emulator::CPU::RAM::real_size;
                      ++i) {
                         unsigned const value = i % Emulator::byte_max;
-                        REQUIRE(ram.read_byte(i) ==
-                                static_cast<Emulator::Byte>(value));
+                        REQUIRE(ram.read_byte(i) == value);
                 }
         }
 

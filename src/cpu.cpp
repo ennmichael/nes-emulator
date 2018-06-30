@@ -80,18 +80,19 @@ unsigned CPU::handler_pointer_address(Interrupt interrupt) noexcept
 
 void CPU::execute_program(Memory& memory, unsigned program_size)
 {
-        while (pc != program_size)
+        unsigned const start = pc;
+        while (pc != start + program_size)
                 execute_instruction(memory);
 }
 
 void CPU::execute_program(Cartridge& cartridge, PPU& ppu)
 {}
 
-void CPU::execute_instruction(Memory const& memory)
+void CPU::execute_instruction(Memory& memory)
 {
         auto const opcode = memory.read_byte(pc);
         auto const instruction = translate_opcode(opcode);
-        instruction(*this, program);
+        instruction(*this, memory);
 }
 
 bool CPU::status(unsigned flag) const noexcept

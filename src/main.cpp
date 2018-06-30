@@ -1,11 +1,22 @@
-#include "sdl++.h"
-#include "cartridge.h"
+#include "cpu.h"
 #include <iostream>
 
 using namespace std::string_literals;
 
-int main(int argc, char** argv)
+int main(int, char**)
 {
-        Sdl::Initializer _;
-        Emulator::Cartridge cartridge("../roms/NEStress.nes"s);
+        Emulator::CPU cpu {
+                .pc = Emulator::TestMemory::ram_size
+        };
+
+        Emulator::TestMemory memory({
+                0xA9, 0x01, 0xA2, 0x05, 0xA0, 0x0A, 0x85, 0x00, 
+                0x95, 0x01, 0x8D, 0x00, 0x03, 0x9D, 0x11, 0x03,
+                0x99, 0x11, 0x03, 0x81, 0x21, 0x91, 0x24, 0x86, 
+                0x35, 0x96, 0x35, 0x8E, 0x50, 0x04, 0x84, 0x45,
+                0x94, 0x45, 0x8C, 0x60, 0x04
+        });
+
+        cpu.execute_program(memory, memory.program_size());
+        std::cout << static_cast<unsigned>(cpu.a) << '\n';
 }

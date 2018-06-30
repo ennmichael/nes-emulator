@@ -9,6 +9,11 @@
 *  see http://gnu.org/licenses/gpl.html
 */
 
+/*
+*  Slight modification by enn michael to allow myself
+*  to automatically generate test cases. :-)
+*/
+
 function openPopup(content, title) {
   var w = window.open('', title, 'width=500,height=300,resizable=yes,scrollbars=yes,toolbar=no,location=no,menubar=no,status=no');
 
@@ -24,58 +29,121 @@ function openPopup(content, title) {
   w.document.close();
 }
 
+function toHex(n) {
+  const e = n.toString(16).toUpperCase();
+  if (e.length % 2 == 1)
+    return `0x0${e}`;
+  return `0x${e}`;
+}
+
 function programCode(hex) {
-  const add0x =
-    s => `0x${s}`;
-
   const convertLine =
-    line => line.split(' ').slice(0, -1).map(add0x).slice(1).join(', ') + ',';
+    line => line.split(' ').slice(0, -1).map(toHex).slice(1).join(', ') + ',';
 
-  return hex.split('\n').map(convertLine).join('\n').slice(0, -2);
+  const assureLineLength =
+    line => (line.length > 16*3) ?
+      line.slice(0, 16*3) + '\n                ' + line.slice(16*3, line.length) :
+      line;
+
+  const addTab =
+    line => `                ${line}`;
+
+  return hex.split('\n')
+            .map(convertLine)
+            .map(assureLineLength)
+            .map(addTab)
+            .join('\n')
+            .slice(0, -1);
 }
 
 function registerTests(registers) {
   function* lines() {
     for (const [name, value] of Object.entries(registers))
-      if (name != 'pc') {
-        yield `                CHECK(cpu.${name} == ${value})`;
-      }
-
-      yield `                CHECK(cpu.pc == program.size());`;
+      if (name != 'pc')
+        yield `                CHECK(cpu.${name} == ${toHex(value)});`;
+      else
+        yield `                CHECK(cpu.${name} == ${toHex(value - 1)});`;
   }
 
   return [...lines()].join('\n');
 }
 
-function testCode(assembler, simulator) {
+function memoryTests(memory) {
+  const testMemorySize = 0x600;
+
+  function* lines() {
+    yield `                for (unsigned i = 0;`;
+    yield `                     i < Emulator::TestMemory::ram_size;`;
+    yield `                     ++i) {`;
+    yield `                        switch (i) {`;
+
+    for (let i = 0; i < testMemorySize; ++i) {
+      const value = memory.get(i);
+      if (i != 0xfe && value != 0) {
+        yield `                        case ${toHex(i)}:`;
+        yield `                                CHECK(memory.read_byte(i) == ${toHex(value)});`;
+        yield `                                break;`
+      }
+    }
+
+    yield `                        default:`;
+    yield `                                CHECK(memory.read_byte(i) == 0x00);`;
+    yield `                                break;`;
+
+    yield `                        }`
+    yield `                }`
+  }
+
+  return [...lines()].join('\n');
+}
+
+function originalComment(code) {
+  function* lines() {
+    yield `        /**`;
+    for (const line of code.split('\n'))
+      yield `        * ${line}`;
+    yield `        */`;
+  }
+
+  return [...lines()].join('\n');
+}
+
+function testCode(assembler, simulator, memory, cb) {
   assembler.assembleCode();
-  simulator.runBinary();
-  return `WHEN("name me")
+  simulator.runBinary(() => {
+  cb(`WHEN("A program is executed")
 {
-        Emulator::Bytes const program = {
-                ${programCode(assembler.hex())}
-        };
+${originalComment(assembler.sourceCode())}
 
-        cpu.execute_program(program);
+        Emulator::TestMemory memory({
+${programCode(assembler.hex())}
+        });
 
-        THEN()
+        cpu.execute_program(memory, memory.program_size());
+
+        THEN("The results are correct")
         {
 ${registerTests(simulator.registers())}
+${memoryTests(memory)}
         }
 }
-`
+`);
+  }); 
 }
 
-function generateTest(assembler, simulator) {
-  const code = testCode(assembler, simulator);
-  openPopup(code, 'Test case');
+function generateTest(assembler, simulator, memory) {
+  testCode(assembler, simulator, memory,
+    code => openPopup(code, 'Test case')
+  );
 }
+
+var memory;
 
 function SimulatorWidget(node) {
   var $node = $(node);
   var ui = UI();
   var display = Display();
-  var memory = Memory();
+  memory = Memory();
   var labels = Labels();
   var simulator = Simulator();
   var assembler = Assembler();
@@ -1558,7 +1626,7 @@ function SimulatorWidget(node) {
     }
 
     // runBinary() - Executes the assembled code
-    function runBinary() {
+    function runBinary(cb) {
       if (codeRunning) {
         // Switch OFF everything
         stop();
@@ -1567,6 +1635,13 @@ function SimulatorWidget(node) {
         ui.play();
         codeRunning = true;
         executeId = setInterval(multiExecute, 15);
+        const checkId = setInterval(
+          () => {
+            if (!codeRunning && cb) {
+              clearInterval(checkId);
+              cb();
+            }
+          }, 16);
       }
     }
 
@@ -1891,6 +1966,10 @@ function SimulatorWidget(node) {
       ["---", null, null, null, null, null, null, null, null, null, null, null, null]
     ];
 
+    function sourceCode() {
+        return $node.find('.code').val();
+    }
+
     // assembleCode()
     // "assembles" the code into memory
     function assembleCode() {
@@ -1899,7 +1978,7 @@ function SimulatorWidget(node) {
       defaultCodePC = 0x600;
       $node.find('.messages code').empty();
 
-      var code = $node.find('.code').val();
+      var code = sourceCode();
       code += "\n\n";
       var lines = code.split("\n");
       codeAssembledOK = true;
@@ -2514,6 +2593,10 @@ function SimulatorWidget(node) {
       openPopup(html, 'Disassembly');
     }
 
+    function codeLength() {
+      return codeLen;
+    }
+    
     return {
       assembleLine: assembleLine,
       assembleCode: assembleCode,
@@ -2521,6 +2604,8 @@ function SimulatorWidget(node) {
         return defaultCodePC;
       },
       hex,
+      codeLength,
+      sourceCode,
       hexdump: hexdump,
       disassemble: disassemble
     };

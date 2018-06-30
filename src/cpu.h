@@ -12,16 +12,6 @@
 #include <variant>
 #include <stdexcept>
 
-/**
- * Ways CPU could be refactored:
- * The instructions could be made more expressive.
- * I wish I could move the instructions out of the class, still have them work,
- * and keep the registers encapsulated (i.e. CPU doesn't become a struct).
- * This could be done via return values from the instructions?
- * Maybe have a struct Registers and pass that into the instructions, and
- * inject the instruction set into the CPU?
- */
-
 namespace Emulator {
 
 class UnknownOpcode : std::runtime_error {
@@ -31,9 +21,7 @@ public:
 
 struct CPU;
 
-using Instruction = std::function<void(CPU& cpu,
-                                       Memory& memory,
-                                       Bytes const& program)>;
+using Instruction = std::function<void(CPU& cpu, Memory& memory)>;
 
 struct CPU {
 public:
@@ -91,13 +79,13 @@ public:
 
         static Instruction translate_opcode(Byte opcode);
 
-        unsigned pc = 0;
+        unsigned pc;
         Byte sp = byte_max;
         Byte a = 0;
         Byte x = 0;
         Byte y = 0;
-        ByteBitset p = 0x34;
-        RAM ram;
+        ByteBitset p = 0x30;
+        RAM ram = RAM();
         Stack stack = Stack(ram, sp);
 
         void execute_program(Memory& memory, unsigned program_size);

@@ -39,7 +39,7 @@ void update_transfer_flags(CPU& cpu, Integer i) noexcept
         update_negative_flag(cpu, i);
 }
 
-void execute_on_memory(void (*operation)(CPU&),
+void execute_on_memory(Byte (*operation)(CPU&),
                        CPU& cpu,
                        Memory& memory,
                        unsigned address)
@@ -47,7 +47,7 @@ void execute_on_memory(void (*operation)(CPU&),
         memory.write_byte(address, operation(cpu));
 }
 
-void execute_on_memory(void (*operation)(CPU&, unsigned),
+void execute_on_memory(void (*operation)(CPU&, Byte),
                        CPU& cpu,
                        Memory const& memory,
                        unsigned address)
@@ -56,13 +56,13 @@ void execute_on_memory(void (*operation)(CPU&, unsigned),
         operation(cpu, operand);
 }
 
-void execute_on_memory(Byte (*operation)(CPU&, unsigned),
+void execute_on_memory(Byte (*operation)(CPU&, Byte),
                        CPU& cpu,
                        Memory& memory,
                        unsigned address)
 {
         auto const operand = memory.read_byte(address);
-        memory.write_byte(operation(cpu, operand));
+        memory.write_byte(address, operation(cpu, operand));
 }
 
 template <class Operation, class Offset>
@@ -183,10 +183,10 @@ template <class Operation>
 Instruction indirect_x(Operation operation) // Indexed indirect
 {
         return [operation](CPU& cpu, Memory& memory)
-        {
-                unsigned const pointer_address =
-                        memory.read_pointer(cpu.pc + 1) + cpu.x;
-                unsigned const pointer = memory.read_pointer(pointer_address);
+        { // FIXME there's a bug here vOv????
+                unsigned const zero_page_address = memory.read_byte(cpu.pc + 1);
+                unsigned const pointer =
+                        memory.read_pointer(zero_page_address + cpu.x);
                 execute_on_memory(operation, cpu, memory, pointer);
                 cpu.pc += 2;
         };
@@ -197,8 +197,8 @@ Instruction indirect_y(Operation operation) // Indirect indexed
 {
         return [operation](CPU& cpu, Memory& memory)
         {
-                unsigned const pointer_address = memory.read_pointer(cpu.pc + 1);
-                unsigned const pointer = memory.read_pointer(pointer_address) + cpu.y;
+                Byte const zero_page_address = memory.read_byte(cpu.pc + 1);
+                unsigned const pointer = memory.read_pointer(zero_page_address) + cpu.y;
                 execute_on_memory(operation, cpu, memory, pointer);
                 cpu.pc += 2;
         };
@@ -375,20 +375,20 @@ void iny(CPU& cpu) noexcept
         cpu.y = inc(cpu, cpu.y);
 }
 
-void absolute_jmp(CPU& cpu, Bytes const& program) noexcept
+void absolute_jmp(CPU& cpu, Memory const& memory) noexcept
 {
-        cpu.pc = absolute_address(cpu.pc, program);
+        cpu.pc = memory.read_pointer(cpu.pc);
 }
 
-void indirect_jmp(CPU& cpu, Bytes const& program) noexcept
+void indirect_jmp(CPU& cpu, Memory const& memory) noexcept
 {
-        cpu.pc = indirect_address(cpu.pc, cpu.ram, program);
+        cpu.pc = memory.deref_pointer(cpu.pc);
 }
 
-void absolute_jsr(CPU& cpu, Bytes const& program) noexcept
+void absolute_jsr(CPU& cpu, Memory const& memory) noexcept
 {
         cpu.stack.push_pointer(cpu.pc);
-        cpu.pc = absolute_address(cpu.pc, program);
+        cpu.pc = memory.read_pointer(cpu.pc);
 }
 
 void lda(CPU& cpu, Byte operand) noexcept
