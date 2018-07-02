@@ -5,6 +5,7 @@ macro(add_compile_options target)
         target_compile_options(${target} PRIVATE "-Wall")
         target_compile_options(${target} PRIVATE "-Wextra")
         target_compile_options(${target} PRIVATE "-std=c++17")
+        target_compile_options(${target} PRIVATE "-O0")
 endmacro()
 
 add_library(nes-emulator-lib src/sdl++.cpp src/cpu.cpp src/ppu.cpp src/cartridge.cpp src/utils.cpp src/instruction_set.cpp src/mem.cpp)

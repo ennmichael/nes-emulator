@@ -27,21 +27,6 @@ public:
         unsigned deref_pointer(unsigned address) const;
 };
 
-class TestMemory : public Memory {
-public:
-        static unsigned constexpr ram_size = 0x600;
-
-        explicit TestMemory(Bytes program) noexcept;
-
-        void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) const override;
-        unsigned program_size() const noexcept;
-
-private:
-        std::array<Emulator::Byte, ram_size> ram_ {0};
-        Bytes program_;
-};
-
 using UniqueMemory = std::unique_ptr<Memory>;
 
 }

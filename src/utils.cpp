@@ -6,9 +6,26 @@ using namespace std::string_literals;
 
 namespace Emulator::Utils {
 
+namespace {
+
+Byte constexpr sign_bit_mask = 0x80;
+Byte constexpr zeroth_bit_mask = 0x01;
+unsigned constexpr low_byte_mask  = 0x00FFu;
+unsigned constexpr high_byte_mask = 0xFF00u;
+
+}
+
 CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
+
+int twos_complement(Byte byte) noexcept
+{
+        if (sign_bit(byte))
+                return -1 - set_sign_bit(~byte, false);
+        else
+                return set_sign_bit(byte, false);
+}
 
 Byte to_byte(ByteBitset bitset) noexcept
 {
@@ -44,43 +61,31 @@ Bytes read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-namespace
+bool sign_bit(Byte byte) noexcept
 {
-        unsigned constexpr sign_bit_mask = 0x80u;
-        unsigned constexpr zeroth_bit_mask = 0x01u;
+        return byte & sign_bit_mask;
 }
 
-bool sign_bit(unsigned value) noexcept
+Byte set_sign_bit(Byte byte, bool value) noexcept
 {
-        return value & sign_bit_mask;
+        return set_bits(byte, sign_bit_mask, value);
 }
 
-unsigned set_sign_bit(unsigned old_value, bool new_bit) noexcept
+bool zeroth_bit(Byte byte) noexcept
 {
-        return set_bits(old_value, sign_bit_mask, new_bit);
+        return byte & zeroth_bit_mask;
 }
 
-bool zeroth_bit(unsigned value) noexcept
+Byte set_zeroth_bit(Byte byte, bool value) noexcept
 {
-        return value & zeroth_bit_mask;
+        return set_bits(byte, zeroth_bit_mask, value);
 }
 
-unsigned set_zeroth_bit(unsigned old_value, bool new_bit) noexcept
-{
-        return set_bits(old_value, zeroth_bit_mask, new_bit);
-}
-
-unsigned set_bits(unsigned old_value, unsigned mask, bool value) noexcept
+Byte set_bits(Byte byte, Byte mask, bool value) noexcept
 {
         return (value) ?
-                old_value | mask :
-                old_value & ~mask;
-}
-
-namespace
-{
-        unsigned constexpr low_byte_mask  = 0x00FFu;
-        unsigned constexpr high_byte_mask = 0xFF00u;
+                byte | mask :
+                byte & ~mask;
 }
 
 BytePair split_address(unsigned pointer) noexcept

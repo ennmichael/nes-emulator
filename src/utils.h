@@ -23,6 +23,11 @@ static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
  * be fairly easy.
  */
 
+/**
+ * TODO I shouldn't need to enforce two's complement, I should just write functions
+ * for two's complement conversion.
+ */
+
 using SignedByte = signed char;
 using Byte = unsigned char;
 using Bytes = std::vector<Byte>;
@@ -43,17 +48,21 @@ public:
         explicit CantOpenFile(std::string const& path);
 };
 
+int twos_complement(Byte byte) noexcept;
+
 Byte to_byte(ByteBitset bitset) noexcept;
 
 Bytes read_bytes(std::string const& path);
 Bytes read_bytes(std::ifstream& ifstream);
 
-bool sign_bit(unsigned value) noexcept;
-unsigned set_sign_bit(unsigned old_value, bool new_bit) noexcept;
-bool zeroth_bit(unsigned value) noexcept;
-unsigned set_zeroth_bit(unsigned old_value, bool new_bit) noexcept;
+// These functions only make sense if they work on bytes
+// TODO Test these
+bool sign_bit(Byte byte) noexcept;
+Byte set_sign_bit(Byte byte, bool value) noexcept;
+bool zeroth_bit(Byte byte) noexcept;
+Byte set_zeroth_bit(Byte byte, bool value) noexcept;
 
-unsigned set_bits(unsigned old_value, unsigned mask, bool value) noexcept;
+Byte set_bits(Byte byte, Byte mask, bool value) noexcept;
 
 struct BytePair {
         Byte low;

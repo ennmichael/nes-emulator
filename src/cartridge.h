@@ -20,6 +20,7 @@ public:
 };
 
 // This is not final at all
+// Just don't have the concept of a memory mapper, only Cartridge
 class MemoryMapper : public Memory {
 public:
         explicit MemoryMapper(Bytes data) noexcept;

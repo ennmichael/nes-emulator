@@ -27,26 +27,5 @@ unsigned Memory::deref_pointer(unsigned address) const
         return read_pointer(read_pointer(address));
 }
 
-TestMemory::TestMemory(Bytes program) noexcept
-        : program_(std::move(program))
-{}
-
-void TestMemory::write_byte(unsigned address, Byte byte)
-{
-        ram_[address] = byte;
-}
-
-Byte TestMemory::read_byte(unsigned address) const
-{
-        if (address < ram_size)
-                return ram_[address];
-        return program_[address - ram_size];
-}
-
-unsigned TestMemory::program_size() const noexcept
-{
-        return program_.size();
-}
-
 }
 

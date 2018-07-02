@@ -3,20 +3,37 @@
 
 using namespace std::string_literals;
 
+namespace {
+
+unsigned constexpr program_start = 0x600u;
+
+// TODO Delete me
+void write_program(Emulator::CPU& cpu, Emulator::Bytes const& program) noexcept
+{
+        for (unsigned i = 0; i < program.size(); ++i) {
+                auto const byte = program[i];
+                cpu.ram.write_byte(program_start + i, byte);
+        }
+}
+
+}
+
 int main(int, char**)
 {
         Emulator::CPU cpu {
-                .pc = Emulator::TestMemory::ram_size
+                .pc = program_start
         };
 
-        Emulator::TestMemory memory({
-                0xA9, 0x01, 0xA2, 0x05, 0xA0, 0x0A, 0x85, 0x00, 
-                0x95, 0x01, 0x8D, 0x00, 0x03, 0x9D, 0x11, 0x03,
-                0x99, 0x11, 0x03, 0x81, 0x21, 0x91, 0x24, 0x86, 
-                0x35, 0x96, 0x35, 0x8E, 0x50, 0x04, 0x84, 0x45,
-                0x94, 0x45, 0x8C, 0x60, 0x04
-        });
+        Emulator::Bytes program {
+                0xA9, 0xFF, 0x69, 0x01
+        };
 
-        cpu.execute_program(memory, memory.program_size());
-        std::cout << static_cast<unsigned>(cpu.a) << '\n';
+        write_program(cpu, program);
+        cpu.execute_instruction(cpu.ram);
+
+        using namespace Emulator;
+
+        std::cout << Emulator::Utils::twos_complement(0b11111111) << '\n';
+        std::cout << Emulator::Utils::sign_bit(0b11111111) << '\n';
+        std::cout << ~(static_cast<Byte>(0b11111111) & ~static_cast<Byte>(0x80)) << '\n';
 }

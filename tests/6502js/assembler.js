@@ -11,7 +11,7 @@
 
 /*
 *  Slight modification by enn michael to allow myself
-*  to automatically generate test cases. :-)
+*  to automatically generate test cases.
 */
 
 function openPopup(content, title) {
@@ -59,10 +59,12 @@ function programCode(hex) {
 function registerTests(registers) {
   function* lines() {
     for (const [name, value] of Object.entries(registers))
-      if (name != 'pc')
-        yield `                CHECK(cpu.${name} == ${toHex(value)});`;
-      else
+      if (name == 'pc')
         yield `                CHECK(cpu.${name} == ${toHex(value - 1)});`;
+      else if (name == 'p')
+        yield `                CHECK(cpu.${name} == ${toHex(value & ~0x10)});`;
+      else
+        yield `                CHECK(cpu.${name} == ${toHex(value)});`;
   }
 
   return [...lines()].join('\n');
@@ -73,7 +75,7 @@ function memoryTests(memory) {
 
   function* lines() {
     yield `                for (unsigned i = 0;`;
-    yield `                     i < Emulator::TestMemory::ram_size;`;
+    yield `                     i < program_start;`;
     yield `                     ++i) {`;
     yield `                        switch (i) {`;
 
@@ -81,13 +83,13 @@ function memoryTests(memory) {
       const value = memory.get(i);
       if (i != 0xfe && value != 0) {
         yield `                        case ${toHex(i)}:`;
-        yield `                                CHECK(memory.read_byte(i) == ${toHex(value)});`;
+        yield `                                CHECK(cpu.ram.read_byte(i) == ${toHex(value)});`;
         yield `                                break;`
       }
     }
 
     yield `                        default:`;
-    yield `                                CHECK(memory.read_byte(i) == 0x00);`;
+    yield `                                CHECK(cpu.ram.read_byte(i) == 0x00);`;
     yield `                                break;`;
 
     yield `                        }`
@@ -101,7 +103,7 @@ function originalComment(code) {
   function* lines() {
     yield `        /**`;
     for (const line of code.split('\n'))
-      yield `        * ${line}`;
+      yield `         ${line}`;
     yield `        */`;
   }
 
@@ -115,11 +117,12 @@ function testCode(assembler, simulator, memory, cb) {
 {
 ${originalComment(assembler.sourceCode())}
 
-        Emulator::TestMemory memory({
+        Emulator::Bytes program {
 ${programCode(assembler.hex())}
-        });
+        };
 
-        cpu.execute_program(memory, memory.program_size());
+        write_program(cpu, program);
+        cpu.execute_program(program.size());
 
         THEN("The results are correct")
         {
@@ -652,7 +655,7 @@ function SimulatorWidget(node) {
       },
 
       i08: function () {
-        stackPush(regP | 0x30);
+        stackPush(regP | 0x20);
         //PHP
       },
 
@@ -775,7 +778,7 @@ function SimulatorWidget(node) {
       },
 
       i28: function () {
-        regP = stackPop() | 0x30; // There is no B bit!
+        regP = stackPop() | 0x20; // There is no B bit!
         //PLP
       },
 
@@ -874,7 +877,7 @@ function SimulatorWidget(node) {
       },
 
       i40: function () {
-        regP = stackPop() | 0x30; // There is no B bit!
+        regP = stackPop() | 0x20; // There is no B bit!
         regPC = stackPop() | (stackPop() << 8);
         //RTI
       },
@@ -1666,6 +1669,7 @@ function SimulatorWidget(node) {
 
       if (instruction) {
         instruction();
+        regP &= ~0x10;
       } else {
         instructions.ierr();
       }
@@ -1764,7 +1768,7 @@ function SimulatorWidget(node) {
       regA = regX = regY = 0;
       regPC = 0x600;
       regSP = 0xff;
-      regP = 0x30;
+      regP = 0x20;
       updateDebugInfo();
     }
 

@@ -12,6 +12,8 @@
 #include <variant>
 #include <stdexcept>
 
+#include <iostream>
+
 namespace Emulator {
 
 class UnknownOpcode : std::runtime_error {
@@ -74,6 +76,7 @@ public:
         static unsigned constexpr zero_flag = 1u;
         static unsigned constexpr interrupt_disable_flag = 2u;
         static unsigned constexpr break_flag = 4u;
+        static unsigned constexpr unused_flag = 5u;
         static unsigned constexpr overflow_flag = 6u;
         static unsigned constexpr negative_flag = 7u;  
 
@@ -84,10 +87,14 @@ public:
         Byte a = 0;
         Byte x = 0;
         Byte y = 0;
-        ByteBitset p = 0x30;
+        ByteBitset p = 0x20;
         RAM ram = RAM();
         Stack stack = Stack(ram, sp);
 
+        // Maybe this interface can be a bit nicer?
+        // Keep the second function private?
+        // Implement NESMemory inside a .cpp file?
+        void execute_program(unsigned program_size);
         void execute_program(Memory& memory, unsigned program_size);
         void execute_program(Cartridge& cartridge, PPU& ppu);
 

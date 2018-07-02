@@ -11,15 +11,11 @@ void update_zero_flag(CPU& cpu, int result) noexcept
         cpu.status(CPU::zero_flag, result == 0);
 }
 
-void update_overflow_flag(CPU& cpu, unsigned result) noexcept
+void update_overflow_flag(CPU& cpu, int signed_result) noexcept
 {
         cpu.status(CPU::overflow_flag,
-                   Utils::sign_bit(cpu.a) != Utils::sign_bit(result));
-}
-
-void update_overflow_flag(CPU& cpu, int result) noexcept
-{
-        update_overflow_flag(cpu, static_cast<unsigned>(result));
+                   signed_result < signed_byte_min ||
+                   signed_result > signed_byte_max);
 }
 
 void update_negative_flag(CPU& cpu, unsigned result) noexcept
@@ -252,22 +248,27 @@ void transfer(CPU& cpu, Byte& reg, Byte value) noexcept
 
 void adc(CPU& cpu, Byte operand) noexcept
 {
-        unsigned const result = cpu.a + operand + cpu.status(CPU::carry_flag);
+        int const signed_result = Utils::twos_complement(cpu.a) +
+                                  Utils::twos_complement(operand) +
+                                  cpu.status(CPU::carry_flag);
+        auto const result = static_cast<Byte>(signed_result);
 
-        cpu.status(CPU::carry_flag, result > 255);
-        update_overflow_flag(cpu, result);
+        cpu.status(CPU::carry_flag, cpu.a > result);
+        update_overflow_flag(cpu, signed_result);
 
-        transfer(cpu, cpu.a, static_cast<Byte>(result));
+        transfer(cpu, cpu.a, result);
 }
 
 void sbc(CPU& cpu, Byte operand) noexcept
-{
-        int const result = cpu.a - operand - !cpu.status(CPU::carry_flag);
+{ // FIXME This probably doesn't work the way it's supposed to.
+        auto const result =
+                static_cast<Byte>(cpu.a - operand - !cpu.status(CPU::carry_flag));
+        int const signed_result = static_cast<int>(result);
 
-        cpu.status(CPU::carry_flag, result >= 0);
-        update_overflow_flag(cpu, result);
+        cpu.status(CPU::carry_flag, signed_result >= 0);
+        update_overflow_flag(cpu, signed_result);
 
-        transfer(cpu, cpu.a, static_cast<Byte>(result));
+        transfer(cpu, cpu.a, result);
 }
 
 void bitwise_and(CPU& cpu, Byte operand) noexcept
@@ -442,6 +443,7 @@ void pla(CPU& cpu) noexcept
 void plp(CPU& cpu) noexcept
 {
         cpu.p = cpu.stack.pull_byte();
+        cpu.status(CPU::unused_flag, true);
 }
 
 Byte rol(CPU& cpu, Byte operand) noexcept

@@ -78,6 +78,11 @@ unsigned CPU::handler_pointer_address(Interrupt interrupt) noexcept
         }
 }
 
+void CPU::execute_program(unsigned program_size)
+{
+        execute_program(ram, program_size);
+}
+
 void CPU::execute_program(Memory& memory, unsigned program_size)
 {
         unsigned const start = pc;
