@@ -55,14 +55,13 @@ Byte to_byte(ByteBitset bitset) noexcept;
 Bytes read_bytes(std::string const& path);
 Bytes read_bytes(std::ifstream& ifstream);
 
-// These functions only make sense if they work on bytes
-// TODO Test these
 bool sign_bit(Byte byte) noexcept;
-Byte set_sign_bit(Byte byte, bool value) noexcept;
+Byte set_sign_bit(Byte byte, bool value=true) noexcept;
 bool zeroth_bit(Byte byte) noexcept;
-Byte set_zeroth_bit(Byte byte, bool value) noexcept;
+Byte set_zeroth_bit(Byte byte, bool value=true) noexcept;
 
-Byte set_bits(Byte byte, Byte mask, bool value) noexcept;
+bool bit(Byte byte, unsigned bit_num) noexcept;
+Byte set_bit(Byte byte, unsigned bit_num, bool value=true) noexcept;
 
 struct BytePair {
         Byte low;

@@ -12,7 +12,7 @@ void write_program(Emulator::CPU& cpu, Emulator::Bytes const& program) noexcept
 {
         for (unsigned i = 0; i < program.size(); ++i) {
                 auto const byte = program[i];
-                cpu.ram.write_byte(program_start + i, byte);
+                cpu.memory->write_byte(program_start + i, byte);
         }
 }
 
@@ -21,19 +21,19 @@ void write_program(Emulator::CPU& cpu, Emulator::Bytes const& program) noexcept
 int main(int, char**)
 {
         Emulator::CPU cpu {
+                .memory = std::make_unique<Emulator::CPU::RAM>(),
                 .pc = program_start
         };
 
         Emulator::Bytes program {
-                0xA9, 0xFF, 0x69, 0x01
+                0xA9, 0x02, 0x85, 0x04, 0x8D, 0x00, 0x02, 0xA9,
+                0x05, 0x38, 0xE9, 0x06, 0x48, 0x08, 0xE5, 0x04
         };
 
         write_program(cpu, program);
-        cpu.execute_instruction(cpu.ram);
+        cpu.execute_program(program.size());
 
-        using namespace Emulator;
-
-        std::cout << Emulator::Utils::twos_complement(0b11111111) << '\n';
-        std::cout << Emulator::Utils::sign_bit(0b11111111) << '\n';
-        std::cout << ~(static_cast<Byte>(0b11111111) & ~static_cast<Byte>(0x80)) << '\n';
+        std::cout << "0x" << std::hex << static_cast<unsigned>(cpu.a) << '\n';
+        std::cout << cpu.p << '\n';
 }
+

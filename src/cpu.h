@@ -23,7 +23,19 @@ public:
 
 struct CPU;
 
-using Instruction = std::function<void(CPU& cpu, Memory& memory)>;
+namespace Stack {
+
+unsigned constexpr bottom_address = 0x100u;
+
+void push_byte(CPU& cpu, Byte byte) noexcept;
+void push_pointer(CPU& cpu, unsigned pointer) noexcept;
+
+Byte pull_byte(CPU& cpu) noexcept;
+unsigned pull_pointer(CPU& cpu) noexcept;
+
+}
+
+using Instruction = std::function<void(CPU& cpu)>;
 
 struct CPU {
 public:
@@ -40,26 +52,17 @@ public:
                 std::array<Byte, real_size> ram_ {0};
         };
 
-        class Stack {
+        class AccessibleMemory : public Memory {
         public:
-                static unsigned constexpr bottom_address = 0x100u;
+                AccessibleMemory(Cartridge& cartridge, PPU& ppu) noexcept;
 
-                Stack(RAM& ram, Byte& sp) noexcept;
-
-                void push_byte(Byte byte) noexcept;
-                void push_pointer(unsigned pointer) noexcept;
-
-                Byte pull_byte() noexcept;
-                unsigned pull_pointer() noexcept;
+                void write_byte(unsigned address, Byte byte) override;
+                Byte read_byte(unsigned address) const override;
 
         private:
-                unsigned absolute_top_address() const noexcept;
-
-                Byte top_byte() const noexcept;
-                unsigned top_pointer() const noexcept;
-
-                RAM* ram_;
-                Byte* sp_;
+                CPU::RAM ram_;
+                Cartridge* cartridge_;
+                PPU* ppu_;
         };
 
         enum class Interrupt {
@@ -82,42 +85,22 @@ public:
 
         static Instruction translate_opcode(Byte opcode);
 
-        unsigned pc;
+        UniqueMemory memory;
+        unsigned pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
         Byte x = 0;
         Byte y = 0;
         ByteBitset p = 0x20;
-        RAM ram = RAM();
-        Stack stack = Stack(ram, sp);
 
-        // Maybe this interface can be a bit nicer?
-        // Keep the second function private?
-        // Implement NESMemory inside a .cpp file?
         void execute_program(unsigned program_size);
-        void execute_program(Memory& memory, unsigned program_size);
-        void execute_program(Cartridge& cartridge, PPU& ppu);
-
-        void execute_instruction(Memory& memory);
+        void execute_instruction();
 
         bool status(unsigned flag) const noexcept;
         void status(unsigned flag, bool value) noexcept;
 
         void raise_interrupt(Interrupt interrupt);
         unsigned handler_pointer(Interrupt interrupt) noexcept;
-};
-
-class NESMemory : public Memory {
-public:
-        NESMemory(CPU::RAM& ram, Cartridge& cartridge, PPU& ppu) noexcept;
-
-        void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) const override;
-
-private:
-        CPU::RAM* ram_;
-        Cartridge* cartridge_;
-        PPU* ppu_;
 };
 
 }

@@ -37,39 +37,36 @@ void update_transfer_flags(CPU& cpu, Integer i) noexcept
 
 void execute_on_memory(Byte (*operation)(CPU&),
                        CPU& cpu,
-                       Memory& memory,
                        unsigned address)
 {
-        memory.write_byte(address, operation(cpu));
+        cpu.memory->write_byte(address, operation(cpu));
 }
 
 void execute_on_memory(void (*operation)(CPU&, Byte),
                        CPU& cpu,
-                       Memory const& memory,
                        unsigned address)
 {
-        auto const operand = memory.read_byte(address);
+        auto const operand = cpu.memory->read_byte(address);
         operation(cpu, operand);
 }
 
 void execute_on_memory(Byte (*operation)(CPU&, Byte),
                        CPU& cpu,
-                       Memory& memory,
                        unsigned address)
 {
-        auto const operand = memory.read_byte(address);
-        memory.write_byte(address, operation(cpu, operand));
+        auto const operand = cpu.memory->read_byte(address);
+        cpu.memory->write_byte(address, operation(cpu, operand));
 }
 
 template <class Operation, class Offset>
 Instruction zero_page(Operation operation, Offset offset)
 {
-        return [operation, offset](CPU& cpu, Memory& memory)
+        return [operation, offset](CPU& cpu)
         {
-                auto const base_address = memory.read_byte(cpu.pc + 1);
+                auto const base_address = cpu.memory->read_byte(cpu.pc + 1);
                 unsigned const address =
                         base_address + static_cast<unsigned>(offset(cpu));
-                execute_on_memory(operation, cpu, memory, address);
+                execute_on_memory(operation, cpu, address);
                 cpu.pc += 2;
         };
 }
@@ -95,11 +92,11 @@ Instruction zero_page_y(Operation operation)
 template <class Operation, class Offset>
 Instruction absolute(Operation operation, Offset offset)
 {
-        return [operation, offset](CPU& cpu, Memory& memory)
+        return [operation, offset](CPU& cpu)
         {
                 unsigned const address =
-                        memory.read_pointer(cpu.pc + 1) + offset(cpu);
-                execute_on_memory(operation, cpu, memory, address);
+                        cpu.memory->read_pointer(cpu.pc + 1) + offset(cpu);
+                execute_on_memory(operation, cpu, address);
                 cpu.pc += 3;
         };
 }
@@ -125,10 +122,10 @@ Instruction absolute_y(Operation const& operation)
 template <class Operation>
 Instruction indirect(Operation operation)
 {
-        return [operation](CPU& cpu, Memory& memory)
+        return [operation](CPU& cpu)
         {
-                unsigned const address = memory.deref_pointer(cpu.pc);
-                execute_on_memory(operation, cpu, memory, address);
+                unsigned const address = cpu.memory->deref_pointer(cpu.pc);
+                execute_on_memory(operation, cpu, address);
                 cpu.pc += 3;
         };
 }
@@ -136,7 +133,7 @@ Instruction indirect(Operation operation)
 template <class Operation>
 Instruction implied(Operation operation)
 {
-        return [operation](CPU& cpu, Memory const&)
+        return [operation](CPU& cpu)
         {
                 operation(cpu);
                 cpu.pc += 1;
@@ -146,7 +143,7 @@ Instruction implied(Operation operation)
 template <class Operation>
 Instruction accumulator(Operation operation)
 {
-        return [operation](CPU& cpu, Memory const&)
+        return [operation](CPU& cpu)
         {
                 cpu.a = operation(cpu, cpu.a);
                 cpu.pc += 1;
@@ -156,9 +153,9 @@ Instruction accumulator(Operation operation)
 template <class Operation>
 Instruction immediate(Operation operation)
 {
-        return [operation](CPU& cpu, Memory& memory)
+        return [operation](CPU& cpu)
         {
-                Byte const operand = memory.read_pointer(cpu.pc + 1);
+                Byte const operand = cpu.memory->read_pointer(cpu.pc + 1);
                 operation(cpu, operand);
                 cpu.pc += 2;
         };
@@ -167,10 +164,10 @@ Instruction immediate(Operation operation)
 template <class Branch>
 Instruction relative(Branch branch)
 {
-        return [branch](CPU& cpu, Memory& memory)
+        return [branch](CPU& cpu)
         {
                 if (branch(cpu))
-                        cpu.pc += static_cast<int>(memory.read_byte(cpu.pc + 1));
+                        cpu.pc += static_cast<int>(cpu.memory->read_byte(cpu.pc + 1));
                 cpu.pc += 2;
         };
 }
@@ -178,12 +175,12 @@ Instruction relative(Branch branch)
 template <class Operation>
 Instruction indirect_x(Operation operation) // Indexed indirect
 {
-        return [operation](CPU& cpu, Memory& memory)
-        { // FIXME there's a bug here vOv????
-                unsigned const zero_page_address = memory.read_byte(cpu.pc + 1);
+        return [operation](CPU& cpu)
+        {
+                unsigned const zero_page_address = cpu.memory->read_byte(cpu.pc + 1);
                 unsigned const pointer =
-                        memory.read_pointer(zero_page_address + cpu.x);
-                execute_on_memory(operation, cpu, memory, pointer);
+                        cpu.memory->read_pointer(zero_page_address + cpu.x);
+                execute_on_memory(operation, cpu, pointer);
                 cpu.pc += 2;
         };
 }
@@ -191,11 +188,12 @@ Instruction indirect_x(Operation operation) // Indexed indirect
 template <class Operation>
 Instruction indirect_y(Operation operation) // Indirect indexed
 {
-        return [operation](CPU& cpu, Memory& memory)
+        return [operation](CPU& cpu)
         {
-                Byte const zero_page_address = memory.read_byte(cpu.pc + 1);
-                unsigned const pointer = memory.read_pointer(zero_page_address) + cpu.y;
-                execute_on_memory(operation, cpu, memory, pointer);
+                Byte const zero_page_address = cpu.memory->read_byte(cpu.pc + 1);
+                unsigned const pointer =
+                        cpu.memory->read_pointer(zero_page_address) + cpu.y;
+                execute_on_memory(operation, cpu, pointer);
                 cpu.pc += 2;
         };
 }
@@ -260,15 +258,21 @@ void adc(CPU& cpu, Byte operand) noexcept
 }
 
 void sbc(CPU& cpu, Byte operand) noexcept
-{ // FIXME This probably doesn't work the way it's supposed to.
-        auto const result =
-                static_cast<Byte>(cpu.a - operand - !cpu.status(CPU::carry_flag));
-        int const signed_result = static_cast<int>(result);
+{
+        /**
+         * I believe this implementation gives the right results,
+         * however it doesn't set the carry bit right. I should figure out:
+         * 1) Why does it give correct results, if it does, and
+         * 2) How I can fix the carry flag issue.
+         */
+        int const signed_result = Utils::twos_complement(cpu.a) -
+                                  Utils::twos_complement(operand) -
+                                  !cpu.status(CPU::carry_flag);
 
-        cpu.status(CPU::carry_flag, signed_result >= 0);
+        cpu.status(CPU::carry_flag, signed_result <= byte_max);
         update_overflow_flag(cpu, signed_result);
 
-        transfer(cpu, cpu.a, result);
+        transfer(cpu, cpu.a, static_cast<Byte>(signed_result));
 }
 
 void bitwise_and(CPU& cpu, Byte operand) noexcept
@@ -289,14 +293,17 @@ Byte asl(CPU& cpu, Byte operand) noexcept
 void bit(CPU& cpu, Byte operand) noexcept
 {
         Byte const result = cpu.a & operand;
+        ByteBitset const operand_bits = operand;
 
-        cpu.status(CPU::overflow_flag, result & 0x40);
-        update_transfer_flags(cpu, result);
+        cpu.status(CPU::negative_flag, operand_bits.test(CPU::negative_flag));
+        cpu.status(CPU::overflow_flag, operand_bits.test(CPU::overflow_flag));
+        update_zero_flag(cpu, result);
 }
 
 void brk(CPU& cpu) noexcept
 {
         cpu.status(CPU::break_flag, true);
+        cpu.pc += 1;
         cpu.raise_interrupt(CPU::Interrupt::irq);
 }
 
@@ -376,20 +383,20 @@ void iny(CPU& cpu) noexcept
         cpu.y = inc(cpu, cpu.y);
 }
 
-void absolute_jmp(CPU& cpu, Memory const& memory) noexcept
+void absolute_jmp(CPU& cpu) noexcept
 {
-        cpu.pc = memory.read_pointer(cpu.pc);
+        cpu.pc = cpu.memory->read_pointer(cpu.pc + 1);
 }
 
-void indirect_jmp(CPU& cpu, Memory const& memory) noexcept
+void indirect_jmp(CPU& cpu) noexcept
 {
-        cpu.pc = memory.deref_pointer(cpu.pc);
+        cpu.pc = cpu.memory->deref_pointer(cpu.pc + 1);
 }
 
-void absolute_jsr(CPU& cpu, Memory const& memory) noexcept
+void absolute_jsr(CPU& cpu) noexcept
 {
-        cpu.stack.push_pointer(cpu.pc);
-        cpu.pc = memory.read_pointer(cpu.pc);
+        Stack::push_pointer(cpu, cpu.pc);
+        cpu.pc = cpu.memory->read_pointer(cpu.pc);
 }
 
 void lda(CPU& cpu, Byte operand) noexcept
@@ -411,7 +418,7 @@ Byte lsr(CPU& cpu, Byte operand) noexcept
 {
         Byte const result = operand >> 1;
 
-        cpu.status(CPU::carry_flag, Utils::zeroth_bit(result));
+        cpu.status(CPU::carry_flag, Utils::zeroth_bit(operand));
         update_transfer_flags(cpu, result);
 
         return result;
@@ -427,22 +434,22 @@ void ora(CPU& cpu, Byte operand) noexcept
 
 void pha(CPU& cpu) noexcept
 {
-        cpu.stack.push_byte(cpu.a);
+        Stack::push_byte(cpu, cpu.a);
 }
 
 void php(CPU& cpu) noexcept
 {
-        cpu.stack.push_byte(Utils::to_byte(cpu.p));
+        Stack::push_byte(cpu, Utils::to_byte(cpu.p));
 }
 
 void pla(CPU& cpu) noexcept
 {
-        transfer(cpu, cpu.a, cpu.stack.pull_byte());
+        transfer(cpu, cpu.a, Stack::pull_byte(cpu));
 }
 
 void plp(CPU& cpu) noexcept
 {
-        cpu.p = cpu.stack.pull_byte();
+        cpu.p = Stack::pull_byte(cpu);
         cpu.status(CPU::unused_flag, true);
 }
 
@@ -470,13 +477,13 @@ Byte ror(CPU& cpu, Byte operand) noexcept
 
 void rti(CPU& cpu) noexcept
 {
-        cpu.p = cpu.stack.pull_byte();
-        cpu.pc = cpu.stack.pull_pointer();
+        cpu.p = Stack::pull_byte(cpu);
+        cpu.pc = Stack::pull_pointer(cpu);
 }
 
 void rts(CPU& cpu) noexcept
 {
-        cpu.pc = cpu.stack.pull_pointer();
+        cpu.pc = Stack::pull_pointer(cpu);
 }
 
 void sec(CPU& cpu) noexcept

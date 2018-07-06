@@ -8,8 +8,7 @@ namespace Emulator::Utils {
 
 namespace {
 
-Byte constexpr sign_bit_mask = 0x80;
-Byte constexpr zeroth_bit_mask = 0x01;
+unsigned constexpr sign_bit_num = 7u;
 unsigned constexpr low_byte_mask  = 0x00FFu;
 unsigned constexpr high_byte_mask = 0xFF00u;
 
@@ -63,29 +62,34 @@ Bytes read_bytes(std::ifstream& ifstream)
 
 bool sign_bit(Byte byte) noexcept
 {
-        return byte & sign_bit_mask;
+        return bit(byte, sign_bit_num);
 }
 
 Byte set_sign_bit(Byte byte, bool value) noexcept
 {
-        return set_bits(byte, sign_bit_mask, value);
+        return set_bit(byte, sign_bit_num, value);
 }
 
 bool zeroth_bit(Byte byte) noexcept
 {
-        return byte & zeroth_bit_mask;
+        return bit(byte, 0);
 }
 
 Byte set_zeroth_bit(Byte byte, bool value) noexcept
 {
-        return set_bits(byte, zeroth_bit_mask, value);
+        return set_bit(byte, 0, value);
 }
 
-Byte set_bits(Byte byte, Byte mask, bool value) noexcept
+bool bit(Byte byte, unsigned bit_num) noexcept
 {
-        return (value) ?
-                byte | mask :
-                byte & ~mask;
+        return ByteBitset(byte).test(bit_num);
+}
+
+Byte set_bit(Byte byte, unsigned bit_num, bool value) noexcept
+{
+        ByteBitset bits = byte;
+        bits.set(bit_num, value);
+        return to_byte(bits);
 }
 
 BytePair split_address(unsigned pointer) noexcept
