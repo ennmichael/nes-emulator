@@ -83,13 +83,13 @@ function memoryTests(memory) {
       const value = memory.get(i);
       if (i != 0xfe && value != 0) {
         yield `                        case ${toHex(i)}:`;
-        yield `                                CHECK(cpu.ram.read_byte(i) == ${toHex(value)});`;
+        yield `                                CHECK(cpu.memory->read_byte(i) == ${toHex(value)});`;
         yield `                                break;`
       }
     }
 
     yield `                        default:`;
-    yield `                                CHECK(cpu.ram.read_byte(i) == 0x00);`;
+    yield `                                CHECK(cpu.memory->read_byte(i) == 0x00);`;
     yield `                                break;`;
 
     yield `                        }`

@@ -60,3 +60,8 @@ TEST_CASE("Utils::twos_complement works")
                 CHECK(twos_complement == Emulator::Utils::twos_complement(byte));
 }
 
+TEST_CASE("Utils::add_bits works")
+{
+        // TODO
+}
+

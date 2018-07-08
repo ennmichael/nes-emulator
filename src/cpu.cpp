@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include <utility>
 #include <string>
+#include <sstream>
 
 // CPU::translate_opcode is defined in instruction_set.cpp
 
@@ -58,8 +59,15 @@ unsigned pull_pointer(CPU& cpu) noexcept
 }
 
 UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
-        : runtime_error("Unknown opcode "s + std::to_string(opcode))
+        : runtime_error(error_message(opcode))
 {}
+
+std::string UnknownOpcode::error_message(Byte opcode) noexcept
+{
+        std::stringstream ss;
+        ss << "Unknown opcode " << Utils::format_hex(opcode) << ".";
+        return ss.str();
+}
 
 void CPU::RAM::write_byte(unsigned address, Byte byte)
 {
@@ -71,7 +79,7 @@ Byte CPU::RAM::read_byte(unsigned address) const
         return ram_[address % real_size];
 }
 
-unsigned CPU::handler_pointer_address(Interrupt interrupt) noexcept
+unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
 {
         switch (interrupt) {
                 case Interrupt::nmi:   return 0xFFFA;
@@ -109,13 +117,14 @@ void CPU::raise_interrupt(Interrupt interrupt)
 {
         Stack::push_pointer(*this, pc);
         Stack::push_byte(*this, Utils::to_byte(p));
+        status(CPU::break_flag, false);
         status(interrupt_disable_flag, true);
-        pc = handler_pointer(interrupt);
+        pc = interrupt_handler(interrupt);
 }
 
-unsigned CPU::handler_pointer(Interrupt interrupt) noexcept
+unsigned CPU::interrupt_handler(Interrupt interrupt) noexcept
 {
-        unsigned const pointer_address = handler_pointer_address(interrupt);
+        unsigned const pointer_address = interrupt_handler_address(interrupt);
         return memory->read_pointer(pointer_address);
 }
 

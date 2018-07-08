@@ -8,7 +8,7 @@
  * I really feel like these should be more automated. I'm generating test code
  * and copy-pasting it here. I should instead just have a set of .asm files,
  * and compile and run those every time and check the results. I could modify
- * the JS assembler so it can be ran using node and then have some IPC checking
+ * the JS assembler so it can be ran using node and then I could check
  * the output of both the node program and this program.
  */
 
@@ -2218,6 +2218,210 @@ SCENARIO("6502 instructions work")
                                 }
                         }
                 }
+
+                WHEN("Some branches are selected")
+                {
+                        /**
+                         ; BPL/BMI testing
+                         
+                         LDA #$FE
+                         ADC #$01 ; Set the negative flag
+                         
+                         BPL skip1
+                         STA $00
+                         
+                         skip1:
+                           BMI skip2
+                           STA $01
+                         
+                         skip2:
+                           STA $02
+                         
+                         ; Calculate 5 * 10 and store it in $03
+                         ; Use $04 as the counter
+                         
+                         LDA #$00
+                         
+                         loop:
+                           ADC #$05
+                           INC $04 ; Increment the counter
+                           LDX $04
+                           CPX #$0A
+                           BNE loop
+                           BEQ somewhereElse
+                         
+                         ; These two lines should be dead code
+                         LDA #$22
+                         STA $0200
+                         
+                         somewhereElse:
+                           STA $03 ; Store 5 * 10 in $03
+                           SEC
+                           BCC somewhereElse ; Would be an infinite loop
+                           BCS someNop
+                           ; More dead code
+                           LDA #$22
+                           STA $0200
+                         
+                         someNop:
+                           NOP ; :-)
+                           CLC
+                           BCC ahead
+                           LDA #$22 ; Dead
+                           STA $0200
+                         
+                         ahead:
+                           LDA #$7F
+                           ADC #$01 ; Set overflow flag
+                           BVC dontSkip
+                           BVS skip69
+                         
+                         dontSkip:
+                           LDA #$22 ; Dead
+                           STA $0200
+                         
+                         skip69:
+                           LDA #$00
+                           ADC #$02 ; Reset overflow flag
+                           BVS hahalol
+                           BVC hahalolno
+                         
+                         hahalol:
+                           LDA #$22 ; Dead
+                           STA $0200
+                         
+                         hahalolno:
+                           NOP ; Alive
+                        */
+
+                        Emulator::Bytes program {
+                                0xA9, 0xFE, 0x69, 0x01, 0x10, 0x02, 0x85, 0x00, 
+                                0x30, 0x02, 0x85, 0x01, 0x85, 0x02, 0xA9, 0x00,
+                                0x69, 0x05, 0xE6, 0x04, 0xA6, 0x04, 0xE0, 0x0A, 
+                                0xD0, 0xF6, 0xF0, 0x05, 0xA9, 0x22, 0x8D, 0x00,
+                                0x02, 0x85, 0x03, 0x38, 0x90, 0xFB, 0xB0, 0x05, 
+                                0xA9, 0x22, 0x8D, 0x00, 0x02, 0xEA, 0x18, 0x90,
+                                0x05, 0xA9, 0x22, 0x8D, 0x00, 0x02, 0xA9, 0x7F, 
+                                0x69, 0x01, 0x50, 0x02, 0x70, 0x05, 0xA9, 0x22,
+                                0x8D, 0x00, 0x02, 0xA9, 0x00, 0x69, 0x02, 0x70, 
+                                0x02, 0x50, 0x05, 0xA9, 0x22, 0x8D, 0x00, 0x02,
+                                0xEA
+                        };
+
+                        write_program(cpu, program);
+                        cpu.execute_program(program.size());
+
+                        THEN("The results are correct")
+                        {
+                                CHECK(cpu.a == 0x02);
+                                CHECK(cpu.x == 0x0A);
+                                CHECK(cpu.y == 0x00);
+                                CHECK(cpu.p == 0x20);
+                                CHECK(cpu.pc == 0x0651);
+                                CHECK(cpu.sp == 0xFF);
+                                for (unsigned i = 0;
+                                     i < program_start;
+                                     ++i) {
+                                        switch (i) {
+                                        case 0x00:
+                                                CHECK(cpu.memory->read_byte(i) == 0xFF);
+                                                break;
+                                        case 0x02:
+                                                CHECK(cpu.memory->read_byte(i) == 0xFF);
+                                                break;
+                                        case 0x03:
+                                                CHECK(cpu.memory->read_byte(i) == 0x32);
+                                                break;
+                                        case 0x04:
+                                                CHECK(cpu.memory->read_byte(i) == 0x0A);
+                                                break;
+                                        default:
+                                                CHECK(cpu.memory->read_byte(i) == 0x00);
+                                                break;
+                                        }
+                                }
+                        }
+                }
+
+                WHEN("The program jumps to some subroutines")
+                {
+                        /**
+                         LDA #$FF
+                         STA $00
+                         JMP after
+                         
+                         sub:
+                           INC $00
+                           INC $01
+                           INC $02
+                           RTS
+                         
+                         after:
+                           PHP
+                           JSR sub
+                           PHP
+                           JSR sub
+                           PHP
+                           JSR end
+                         
+                         end:
+                           NOP
+                        */
+
+                        Emulator::Bytes program {
+                                0xA9, 0xFF, 0x85, 0x00, 0x4C, 0x0E, 0x06, 0xE6, 
+                                0x00, 0xE6, 0x01, 0xE6, 0x02, 0x60, 0x08, 0x20,
+                                0x07, 0x06, 0x08, 0x20, 0x07, 0x06, 0x08, 0x20, 
+                                0x1A, 0x06, 0xEA
+                        };
+
+                        write_program(cpu, program);
+                        cpu.execute_program(program.size());
+
+                        THEN("The results are correct")
+                        {
+                                CHECK(cpu.a == 0xFF);
+                                CHECK(cpu.x == 0x00);
+                                CHECK(cpu.y == 0x00);
+                                CHECK(cpu.p == 0x20);
+                                CHECK(cpu.pc == 0x061B);
+                                CHECK(cpu.sp == 0xFA);
+                                for (unsigned i = 0;
+                                     i < program_start;
+                                     ++i) {
+                                        switch (i) {
+                                        case 0x00:
+                                                CHECK(cpu.memory->read_byte(i) == 0x01);
+                                                break;
+                                        case 0x01:
+                                                CHECK(cpu.memory->read_byte(i) == 0x02);
+                                                break;
+                                        case 0x02:
+                                                CHECK(cpu.memory->read_byte(i) == 0x02);
+                                                break;
+                                        case 0x01FB:
+                                                CHECK(cpu.memory->read_byte(i) == 0x19);
+                                                break;
+                                        case 0x01FC:
+                                                CHECK(cpu.memory->read_byte(i) == 0x06);
+                                                break;
+                                        case 0x01FD:
+                                                CHECK(cpu.memory->read_byte(i) == 0x20);
+                                                break;
+                                        case 0x01FE:
+                                                CHECK(cpu.memory->read_byte(i) == 0x20);
+                                                break;
+                                        case 0x01FF:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA0);
+                                                break;
+                                        default:
+                                                CHECK(cpu.memory->read_byte(i) == 0x00);
+                                                break;
+                                        }
+                                }
+                        }
+                }
+                
 
         }
 }

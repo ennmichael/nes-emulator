@@ -16,9 +16,12 @@
 
 namespace Emulator {
 
-class UnknownOpcode : std::runtime_error {
+class UnknownOpcode : public std::runtime_error {
 public:
         explicit UnknownOpcode(Byte opcode) noexcept;
+
+private:
+        static std::string error_message(Byte opcode) noexcept;
 };
 
 struct CPU;
@@ -71,7 +74,7 @@ public:
                 reset
         };
 
-        static unsigned handler_pointer_address(Interrupt interrupt) noexcept;
+        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept;
 
         static unsigned constexpr address_size = 2u;
 
@@ -100,7 +103,7 @@ public:
         void status(unsigned flag, bool value) noexcept;
 
         void raise_interrupt(Interrupt interrupt);
-        unsigned handler_pointer(Interrupt interrupt) noexcept;
+        unsigned interrupt_handler(Interrupt interrupt) noexcept;
 };
 
 }

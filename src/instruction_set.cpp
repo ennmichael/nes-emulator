@@ -1,5 +1,16 @@
 #include "cpu.h"
 
+/**
+ * TODO Maybe for adc and sbc I should use
+ * ExtendedByteBitset = std::bitset<CHAR_BIT + 1> where the 8th bit is
+ * the carry bit.
+ *
+ * TODO Increment the program counter *before* calling the operation?
+ * This doesn't really make sense.
+ * Does this make it easier to implement BRK and JSR?
+ * What is the alternative way to implement BRK? Just push pc + 2 to the stack?
+ */
+
 namespace Emulator
 {
 
@@ -155,7 +166,7 @@ Instruction immediate(Operation operation)
 {
         return [operation](CPU& cpu)
         {
-                Byte const operand = cpu.memory->read_pointer(cpu.pc + 1);
+                auto const operand = cpu.memory->read_byte(cpu.pc + 1);
                 operation(cpu, operand);
                 cpu.pc += 2;
         };
@@ -166,8 +177,10 @@ Instruction relative(Branch branch)
 {
         return [branch](CPU& cpu)
         {
-                if (branch(cpu))
-                        cpu.pc += static_cast<int>(cpu.memory->read_byte(cpu.pc + 1));
+                if (branch(cpu)) {
+                        auto const displacement = cpu.memory->read_byte(cpu.pc + 1);
+                        cpu.pc += Utils::twos_complement(displacement);
+                }
                 cpu.pc += 2;
         };
 }
@@ -190,7 +203,7 @@ Instruction indirect_y(Operation operation) // Indirect indexed
 {
         return [operation](CPU& cpu)
         {
-                Byte const zero_page_address = cpu.memory->read_byte(cpu.pc + 1);
+                auto const zero_page_address = cpu.memory->read_byte(cpu.pc + 1);
                 unsigned const pointer =
                         cpu.memory->read_pointer(zero_page_address) + cpu.y;
                 execute_on_memory(operation, cpu, pointer);
@@ -300,13 +313,6 @@ void bit(CPU& cpu, Byte operand) noexcept
         update_zero_flag(cpu, result);
 }
 
-void brk(CPU& cpu) noexcept
-{
-        cpu.status(CPU::break_flag, true);
-        cpu.pc += 1;
-        cpu.raise_interrupt(CPU::Interrupt::irq);
-}
-
 void clc(CPU& cpu) noexcept
 {
         cpu.status(CPU::carry_flag, false);
@@ -393,10 +399,10 @@ void indirect_jmp(CPU& cpu) noexcept
         cpu.pc = cpu.memory->deref_pointer(cpu.pc + 1);
 }
 
-void absolute_jsr(CPU& cpu) noexcept
+void jsr(CPU& cpu) noexcept
 {
-        Stack::push_pointer(cpu, cpu.pc);
-        cpu.pc = cpu.memory->read_pointer(cpu.pc);
+        Stack::push_pointer(cpu, cpu.pc + 2);
+        cpu.pc = cpu.memory->read_pointer(cpu.pc + 1);
 }
 
 void lda(CPU& cpu, Byte operand) noexcept
@@ -483,7 +489,7 @@ void rti(CPU& cpu) noexcept
 
 void rts(CPU& cpu) noexcept
 {
-        cpu.pc = Stack::pull_pointer(cpu);
+        cpu.pc = Stack::pull_pointer(cpu) + 1;
 }
 
 void sec(CPU& cpu) noexcept
@@ -546,7 +552,6 @@ void tya(CPU& cpu) noexcept
 Instruction CPU::translate_opcode(Byte opcode)
 {
         switch (opcode) {
-                case 0x00: return implied(brk);
                 case 0x01: return indirect_x(ora);
                 case 0x05: return zero_page(ora);
                 case 0x06: return zero_page(asl);
@@ -563,7 +568,7 @@ Instruction CPU::translate_opcode(Byte opcode)
                 case 0x19: return absolute_y(ora);
                 case 0x1D: return absolute_x(ora);
                 case 0x1E: return absolute_x(asl);
-                case 0x20: return absolute_jsr;
+                case 0x20: return jsr;
                 case 0x21: return indirect_x(bitwise_and);
                 case 0x24: return zero_page(bit);
                 case 0x25: return zero_page(bitwise_and);
@@ -600,7 +605,7 @@ Instruction CPU::translate_opcode(Byte opcode)
                 case 0x59: return absolute_y(eor);
                 case 0x5D: return absolute_x(eor);
                 case 0x5E: return absolute_x(lsr);
-                case 0x60: return implied(rts);
+                case 0x60: return rts;
                 case 0x61: return indirect_x(adc);
                 case 0x65: return zero_page(adc);
                 case 0x66: return zero_page(ror);

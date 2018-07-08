@@ -32,12 +32,20 @@ using SignedByte = signed char;
 using Byte = unsigned char;
 using Bytes = std::vector<Byte>;
 using ByteBitset = std::bitset<CHAR_BIT>;
+using ExtendedByteBitset = std::bitset<CHAR_BIT + 1>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
 SignedByte constexpr signed_byte_max = std::numeric_limits<SignedByte>::max();
 SignedByte constexpr signed_byte_min = std::numeric_limits<SignedByte>::min();
 
 namespace Utils {
+
+template <std::size_t N, std::size_t M>
+auto add_bits(std::bitset<N> b1, std::bitset<M> b2)
+{
+        using Result = std::bitset<std::max(N, M)>;
+        return Result(b1.to_ullong() + b2.to_ullong());
+}
 
 template <class F, class... Args>
 bool constexpr returns_void =
@@ -47,6 +55,8 @@ class CantOpenFile : public std::runtime_error {
 public:
         explicit CantOpenFile(std::string const& path);
 };
+
+std::string format_hex(Byte byte);
 
 int twos_complement(Byte byte) noexcept;
 
