@@ -4,11 +4,32 @@
 
 using namespace std::string_literals;
 
-namespace Emulator::Utils {
+namespace Emulator {
+
+namespace TwosComplement {
+
+int encode(Byte value) noexcept
+{
+        if (Utils::bit(value, sign_bit))
+                return -1 - static_cast<Byte>(~static_cast<unsigned>(value));
+        else
+                return value;
+}
+
+Byte decode(int value) noexcept
+{
+        if (value < 0)
+                return ~static_cast<unsigned>(-value) + 1;
+        else
+                return value;
+}
+
+}
+
+namespace Utils {
 
 namespace {
 
-unsigned constexpr sign_bit_num = 7u;
 unsigned constexpr low_byte_mask  = 0x00FFu;
 unsigned constexpr high_byte_mask = 0xFF00u;
 
@@ -28,19 +49,6 @@ std::string format_hex(Byte byte)
                 ss << "0x" << std::hex << static_cast<unsigned>(byte);
 
         return ss.str();
-}
-
-int twos_complement(Byte byte) noexcept
-{
-        if (sign_bit(byte))
-                return -1 - set_sign_bit(~byte, false);
-        else
-                return set_sign_bit(byte, false);
-}
-
-Byte to_byte(ByteBitset bitset) noexcept
-{
-        return static_cast<Byte>(bitset.to_ulong());
 }
 
 Bytes read_bytes(std::string const& path)
@@ -72,38 +80,6 @@ Bytes read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-bool sign_bit(Byte byte) noexcept
-{
-        return bit(byte, sign_bit_num);
-}
-
-Byte set_sign_bit(Byte byte, bool value) noexcept
-{
-        return set_bit(byte, sign_bit_num, value);
-}
-
-bool zeroth_bit(Byte byte) noexcept
-{
-        return bit(byte, 0);
-}
-
-Byte set_zeroth_bit(Byte byte, bool value) noexcept
-{
-        return set_bit(byte, 0, value);
-}
-
-bool bit(Byte byte, unsigned bit_num) noexcept
-{
-        return ByteBitset(byte).test(bit_num);
-}
-
-Byte set_bit(Byte byte, unsigned bit_num, bool value) noexcept
-{
-        ByteBitset bits = byte;
-        bits.set(bit_num, value);
-        return to_byte(bits);
-}
-
 BytePair split_address(unsigned pointer) noexcept
 {
         return {
@@ -122,6 +98,8 @@ unsigned create_address(BytePair byte_pair) noexcept
 {
         auto const& [low, high] = byte_pair;
         return create_address(low, high);
+}
+
 }
 
 }

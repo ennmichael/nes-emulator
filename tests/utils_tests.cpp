@@ -38,30 +38,27 @@ TEST_CASE("Utils::create_address works")
                 CHECK(Emulator::Utils::create_address(low, high) == address);
 }
 
-TEST_CASE("Utils::twos_complement works")
+TEST_CASE("TwosComplement::encode works")
 {
         struct Example {
                 Emulator::Byte byte;
-                int twos_complement;
+                int value;
         };
 
         std::array constexpr examples {
-                Example {.byte = 0b10000001, .twos_complement = -127},
-                Example {.byte = 0b10000100, .twos_complement = -124},
-                Example {.byte = 0b11010101, .twos_complement = -43},
-                Example {.byte = 0b11111111, .twos_complement = -1},
-                Example {.byte = 0b00000000, .twos_complement = 0},
-                Example {.byte = 0b00000001, .twos_complement = 1},
-                Example {.byte = 0b00000101, .twos_complement = 5},
-                Example {.byte = 0b01011010, .twos_complement = 90}
+                Example {.byte = 0b10000001, .value = -127},
+                Example {.byte = 0b10000100, .value = -124},
+                Example {.byte = 0b11010101, .value = -43},
+                Example {.byte = 0b11111111, .value = -1},
+                Example {.byte = 0b00000000, .value = 0},
+                Example {.byte = 0b00000001, .value = 1},
+                Example {.byte = 0b00000101, .value = 5},
+                Example {.byte = 0b01011010, .value = 90}
         };
 
-        for (auto const& [byte, twos_complement] : examples)
-                CHECK(twos_complement == Emulator::Utils::twos_complement(byte));
-}
-
-TEST_CASE("Utils::add_bits works")
-{
-        // TODO
+        for (auto const& [byte, value] : examples) {
+                CHECK(Emulator::TwosComplement::encode(byte) == value);
+                CHECK(Emulator::TwosComplement::decode(value) == byte);
+        }
 }
 

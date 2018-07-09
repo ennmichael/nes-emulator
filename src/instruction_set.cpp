@@ -1,14 +1,11 @@
 #include "cpu.h"
 
 /**
- * TODO Maybe for adc and sbc I should use
- * ExtendedByteBitset = std::bitset<CHAR_BIT + 1> where the 8th bit is
- * the carry bit.
- *
- * TODO Increment the program counter *before* calling the operation?
- * This doesn't really make sense.
- * Does this make it easier to implement BRK and JSR?
- * What is the alternative way to implement BRK? Just push pc + 2 to the stack?
+ * TODO Implement adc and sbc via Utils::add_bits.
+ */
+
+/**
+ * TODO Implement RTI, test interrupt handling.
  */
 
 namespace Emulator
@@ -31,12 +28,7 @@ void update_overflow_flag(CPU& cpu, int signed_result) noexcept
 
 void update_negative_flag(CPU& cpu, unsigned result) noexcept
 {
-        cpu.status(CPU::negative_flag, Utils::sign_bit(result));
-}
-
-void update_negative_flag(CPU& cpu, int result) noexcept
-{
-        update_negative_flag(cpu, static_cast<unsigned>(result));
+        cpu.status(CPU::negative_flag, Utils::bit(result, sign_bit));
 }
 
 template <class Integer>
@@ -179,7 +171,7 @@ Instruction relative(Branch branch)
         {
                 if (branch(cpu)) {
                         auto const displacement = cpu.memory->read_byte(cpu.pc + 1);
-                        cpu.pc += Utils::twos_complement(displacement);
+                        cpu.pc += TwosComplement::encode(displacement);
                 }
                 cpu.pc += 2;
         };
@@ -259,10 +251,10 @@ void transfer(CPU& cpu, Byte& reg, Byte value) noexcept
 
 void adc(CPU& cpu, Byte operand) noexcept
 {
-        int const signed_result = Utils::twos_complement(cpu.a) +
-                                  Utils::twos_complement(operand) +
+        int const signed_result = TwosComplement::encode(cpu.a) +
+                                  TwosComplement::encode(operand) +
                                   cpu.status(CPU::carry_flag);
-        auto const result = static_cast<Byte>(signed_result);
+        auto const result = TwosComplement::decode(signed_result);
 
         cpu.status(CPU::carry_flag, cpu.a > result);
         update_overflow_flag(cpu, signed_result);
@@ -272,20 +264,15 @@ void adc(CPU& cpu, Byte operand) noexcept
 
 void sbc(CPU& cpu, Byte operand) noexcept
 {
-        /**
-         * I believe this implementation gives the right results,
-         * however it doesn't set the carry bit right. I should figure out:
-         * 1) Why does it give correct results, if it does, and
-         * 2) How I can fix the carry flag issue.
-         */
-        int const signed_result = Utils::twos_complement(cpu.a) -
-                                  Utils::twos_complement(operand) -
+        int const signed_result = TwosComplement::encode(cpu.a) -
+                                  TwosComplement::encode(operand) -
                                   !cpu.status(CPU::carry_flag);
+        Byte const result = TwosComplement::decode(signed_result);
 
         cpu.status(CPU::carry_flag, signed_result <= byte_max);
         update_overflow_flag(cpu, signed_result);
 
-        transfer(cpu, cpu.a, static_cast<Byte>(signed_result));
+        transfer(cpu, cpu.a, result);
 }
 
 void bitwise_and(CPU& cpu, Byte operand) noexcept
@@ -297,7 +284,7 @@ Byte asl(CPU& cpu, Byte operand) noexcept
 {
         Byte const result = operand << 1;
         
-        cpu.status(CPU::carry_flag, Utils::sign_bit(operand));
+        cpu.status(CPU::carry_flag, Utils::bit(operand, sign_bit));
         update_transfer_flags(cpu, result);
 
         return result;
@@ -424,7 +411,7 @@ Byte lsr(CPU& cpu, Byte operand) noexcept
 {
         Byte const result = operand >> 1;
 
-        cpu.status(CPU::carry_flag, Utils::zeroth_bit(operand));
+        cpu.status(CPU::carry_flag, Utils::bit(operand, 0));
         update_transfer_flags(cpu, result);
 
         return result;
@@ -461,10 +448,14 @@ void plp(CPU& cpu) noexcept
 
 Byte rol(CPU& cpu, Byte operand) noexcept
 {
-        Byte const result = Utils::set_zeroth_bit(operand << 1,
-                                                  cpu.status(CPU::carry_flag));
+        Byte const result = [&] {
+                ByteBitset bits(operand);
+                bits <<= 1;
+                bits.set(0, cpu.status(CPU::carry_flag));
+                return Utils::to_byte(bits);
+        }();
 
-        cpu.status(CPU::carry_flag, Utils::sign_bit(operand));
+        cpu.status(CPU::carry_flag, Utils::bit(operand, sign_bit));
         update_transfer_flags(cpu, result);
 
         return result;
@@ -472,10 +463,14 @@ Byte rol(CPU& cpu, Byte operand) noexcept
 
 Byte ror(CPU& cpu, Byte operand) noexcept
 {
-        Byte const result = Utils::set_sign_bit(operand >> 1,
-                                                cpu.status(CPU::carry_flag));
+        Byte const result = [&] {
+                ByteBitset bits(operand);
+                bits >>= 1;
+                bits.set(sign_bit, cpu.status(CPU::carry_flag));
+                return Utils::to_byte(bits);
+        }();
 
-        cpu.status(CPU::carry_flag, Utils::zeroth_bit(operand));
+        cpu.status(CPU::carry_flag, Utils::bit(operand, 0));
         update_transfer_flags(cpu, result);
 
         return result;

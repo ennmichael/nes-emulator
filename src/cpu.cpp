@@ -98,6 +98,7 @@ void CPU::execute_program(unsigned program_size)
 
 void CPU::execute_instruction()
 {
+        auto const old_a = a;
         auto const opcode = memory->read_byte(pc);
         auto const instruction = translate_opcode(opcode);
         instruction(*this);

@@ -17,7 +17,7 @@ static_assert(-1 == ~0, "Two's complement not used.");
 static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 
 /**
- * TODO I could probably add big-endian support. Currently, I have no way to
+ * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
  * functions Utils::split_pointer and Utils::create_pointer. The changes should
  * be fairly easy.
@@ -28,9 +28,13 @@ static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
  * for two's complement conversion.
  */
 
+template <class T>
+using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
+
 using SignedByte = signed char;
 using Byte = unsigned char;
 using Bytes = std::vector<Byte>;
+
 using ByteBitset = std::bitset<CHAR_BIT>;
 using ExtendedByteBitset = std::bitset<CHAR_BIT + 1>;
 
@@ -38,13 +42,22 @@ Byte constexpr byte_max = std::numeric_limits<Byte>::max();
 SignedByte constexpr signed_byte_max = std::numeric_limits<SignedByte>::max();
 SignedByte constexpr signed_byte_min = std::numeric_limits<SignedByte>::min();
 
+std::size_t constexpr sign_bit = CHAR_BIT - 1;
+
+namespace TwosComplement {
+
+int encode(Byte value) noexcept;
+Byte decode(int value) noexcept;
+
+}
+
 namespace Utils {
 
-template <std::size_t N, std::size_t M>
-auto add_bits(std::bitset<N> b1, std::bitset<M> b2)
+// TODO Do I need this?
+template <std::size_t N>
+auto add_bits(std::bitset<N> b1, std::bitset<N> b2)
 {
-        using Result = std::bitset<std::max(N, M)>;
-        return Result(b1.to_ullong() + b2.to_ullong());
+        return std::bitset<N + 1>(b1.to_ullong() + b2.to_ullong());
 }
 
 template <class F, class... Args>
@@ -58,20 +71,32 @@ public:
 
 std::string format_hex(Byte byte);
 
-int twos_complement(Byte byte) noexcept;
-
-Byte to_byte(ByteBitset bitset) noexcept;
+template <std::size_t N>
+auto to_byte(std::bitset<N> bits) noexcept
+{
+        return static_cast<Byte>(bits.to_ullong());
+}
 
 Bytes read_bytes(std::string const& path);
 Bytes read_bytes(std::ifstream& ifstream);
 
-bool sign_bit(Byte byte) noexcept;
-Byte set_sign_bit(Byte byte, bool value=true) noexcept;
-bool zeroth_bit(Byte byte) noexcept;
-Byte set_zeroth_bit(Byte byte, bool value=true) noexcept;
+template <class T>
+bool bit(T t, unsigned bit_num) noexcept
+{
+        static_assert(std::is_unsigned_v<T>);
 
-bool bit(Byte byte, unsigned bit_num) noexcept;
-Byte set_bit(Byte byte, unsigned bit_num, bool value=true) noexcept;
+        return AutoBitset<T>(t).test(bit_num);
+}
+
+template <class T>
+T set_bit(T t, unsigned bit_num, bool value=true) noexcept
+{
+        static_assert(std::is_unsigned_v<T>);
+
+        AutoBitset<T> bits(t);
+        bits.set(bit_num, value);
+        return bits.to_ullong();
+}
 
 struct BytePair {
         Byte low;
