@@ -6,8 +6,7 @@ using namespace std::string_literals;
 void require_mirrored_reading_works(Emulator::CPU::RAM const& ram)
 {
         for (unsigned i = Emulator::CPU::RAM::real_size;
-             i < Emulator::CPU::RAM::real_size +
-                 Emulator::CPU::RAM::mirrors_size;
+             i < Emulator::CPU::RAM::top;
              ++i) {
                 auto const mirrored_adress = i - Emulator::CPU::RAM::real_size;
                 REQUIRE(ram.read_byte(i) == ram.read_byte(mirrored_adress));
@@ -18,7 +17,7 @@ TEST_CASE("Internal Emulator::CPU ram works")
 {
         Emulator::CPU::RAM ram;
 
-        for (unsigned i = 0;
+        for (unsigned i = Emulator::CPU::RAM::bottom;
              i < Emulator::CPU::RAM::real_size;
              ++i) {
                 unsigned const value = i % Emulator::byte_max;
@@ -27,7 +26,7 @@ TEST_CASE("Internal Emulator::CPU ram works")
 
         SECTION("Reading works")
         {
-                for (unsigned i = 0;
+                for (unsigned i = Emulator::CPU::RAM::bottom;
                      i < Emulator::CPU::RAM::real_size;
                      ++i) {
                         unsigned const value = i % Emulator::byte_max;
@@ -43,8 +42,7 @@ TEST_CASE("Internal Emulator::CPU ram works")
         SECTION("Mirrored writing works")
         {
                 for (unsigned i = Emulator::CPU::RAM::real_size;
-                     i < Emulator::CPU::RAM::real_size +
-                         Emulator::CPU::RAM::mirrors_size;
+                     i < Emulator::CPU::RAM::top;
                      ++i) {
                         ram.write_byte(i, static_cast<Emulator::Byte>((i % 256) + 1));
                 }

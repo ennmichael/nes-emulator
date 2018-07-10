@@ -269,7 +269,7 @@ void sbc(CPU& cpu, Byte operand) noexcept
                                   !cpu.status(CPU::carry_flag);
         Byte const result = TwosComplement::decode(signed_result);
 
-        cpu.status(CPU::carry_flag, signed_result <= byte_max);
+        cpu.status(CPU::carry_flag, operand <= cpu.a);
         update_overflow_flag(cpu, signed_result);
 
         transfer(cpu, cpu.a, result);

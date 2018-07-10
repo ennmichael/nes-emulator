@@ -44,15 +44,33 @@ struct CPU {
 public:
         class RAM : public Memory {
         public:
-                static unsigned constexpr addressable_size = 0x2000u;
+                static unsigned constexpr bottom = 0x0000u;
+                static unsigned constexpr top = 0x2000u;
+
                 static unsigned constexpr real_size = 0x800u;
-                static unsigned constexpr mirrors_size = addressable_size - real_size;
+                static unsigned constexpr mirrors_size = top - real_size;
 
                 void write_byte(unsigned address, Byte byte) override;
                 Byte read_byte(unsigned address) const override;
 
         private:
+                static unsigned translate_address(unsigned address) noexcept;
+
                 std::array<Byte, real_size> ram_ {0};
+        };
+
+        class InterruptVector : public Memory {
+        public:
+                static unsigned constexpr bottom = 0xFFFA;
+                static unsigned constexpr top = 0x10000;
+
+                void write_byte(unsigned address, Byte byte) override;
+                Byte read_byte(unsigned address) const override;
+
+        private:
+                static unsigned translate_address(unsigned address) noexcept;
+
+                std::array<Byte, top - bottom> vector_ {0};
         };
 
         class AccessibleMemory : public Memory {

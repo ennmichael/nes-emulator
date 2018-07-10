@@ -71,12 +71,32 @@ std::string UnknownOpcode::error_message(Byte opcode) noexcept
 
 void CPU::RAM::write_byte(unsigned address, Byte byte)
 {
-        ram_[address % real_size] = byte;
+        ram_[translate_address(address)] = byte;
 }
 
 Byte CPU::RAM::read_byte(unsigned address) const
 {
-        return ram_[address % real_size];
+        return ram_[translate_address(address)];
+}
+
+unsigned CPU::RAM::translate_address(unsigned address) noexcept
+{
+        return address % real_size;
+}
+
+void CPU::InterruptVector::write_byte(unsigned address, Byte byte)
+{
+        vector_[translate_address(address)] = byte;
+}
+
+Byte CPU::InterruptVector::read_byte(unsigned address) const
+{
+        return vector_[translate_address(address)];
+}
+
+unsigned CPU::InterruptVector::translate_address(unsigned address) noexcept
+{
+        return address - bottom;
 }
 
 unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
@@ -98,7 +118,6 @@ void CPU::execute_program(unsigned program_size)
 
 void CPU::execute_instruction()
 {
-        auto const old_a = a;
         auto const opcode = memory->read_byte(pc);
         auto const instruction = translate_opcode(opcode);
         instruction(*this);

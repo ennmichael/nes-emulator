@@ -5,11 +5,7 @@
 #include <array>
 
 /**
- * I really feel like these should be more automated. I'm generating test code
- * and copy-pasting it here. I should instead just have a set of .asm files,
- * and compile and run those every time and check the results. I could modify
- * the JS assembler so it can be ran using node and then I could check
- * the output of both the node program and this program.
+ * TODO Interrupts haven't been tested.
  */
 
 namespace {
@@ -414,10 +410,8 @@ SCENARIO("6502 instructions work")
                         }
                 }
 
-                // FIXME SBC doesn't work
-                /*
                 WHEN("Some values are subtracted from the accumulator")
-                {*/
+                {
                         /**
                          LDA #$02
                          STA $04
@@ -427,24 +421,30 @@ SCENARIO("6502 instructions work")
                          SEC
                          
                          SBC #$06
+                         PHP
                          PHA
                          
                          SBC $04
+                         PHP
                          PHA
                          
                          LDX #$02
                          LDY #$03
                          
                          SBC $02,X
+                         PHP
                          PHA
                          
                          SBC $0200
+                         PHP
                          PHA
                          
                          SBC $01F8,X
+                         PHP
                          PHA
                          
                          SBC $01F7,Y
+                         PHP
                          PHA
                          
                          ; Indirect addressing modes
@@ -457,6 +457,7 @@ SCENARIO("6502 instructions work")
                          
                          LDX $05
                          SBC ($4B,X)
+                         PHP
                          PHA
                          
                          ; Store the address $01FF at $50
@@ -467,20 +468,24 @@ SCENARIO("6502 instructions work")
                          
                          LDY $01
                          SBC ($50),Y
+                         PHP
                          PHA
                          
                          ; Set the carry flag
                          LDA #$FF
                          SBC #$01
+                         PHP
                          PHA
                          
                          CLC
                          
                          LDA #$FF
                          SBC #$A0
+                         PHP
                          PHA
                          
                          SBC #$01
+                         PHP
                          PHA
                          
                          ; Without resetting the carry flag
@@ -488,17 +493,18 @@ SCENARIO("6502 instructions work")
                          SBC #$02
                         */
 
-                        /*Emulator::Bytes program {
+                        Emulator::Bytes program {
                                 0xA9, 0x02, 0x85, 0x04, 0x8D, 0x00, 0x02, 0xA9, 
-                                0x05, 0x38, 0xE9, 0x06, 0x48, 0xE5, 0x04, 0x48,
-                                0xA2, 0x02, 0xA0, 0x03, 0xF5, 0x02, 0x48, 0xED, 
-                                0x00, 0x02, 0x48, 0xFD, 0xF8, 0x01, 0x48, 0xF9,
-                                0xF7, 0x01, 0x48, 0xA6, 0x00, 0x86, 0x50, 0xA6, 
-                                0x02, 0x86, 0x51, 0xA6, 0x05, 0xE1, 0x4B, 0x48,
-                                0xA6, 0xFF, 0x86, 0x50, 0xA6, 0x01, 0x86, 0x51, 
-                                0xA4, 0x01, 0xF1, 0x50, 0x48, 0xA9, 0xFF, 0xE9,
-                                0x01, 0x48, 0x18, 0xA9, 0xFF, 0xE9, 0xA0, 0x48, 
-                                0xE9, 0x01, 0x48, 0xE9, 0x02
+                                0x05, 0x38, 0xE9, 0x06, 0x08, 0x48, 0xE5, 0x04,
+                                0x08, 0x48, 0xA2, 0x02, 0xA0, 0x03, 0xF5, 0x02, 
+                                0x08, 0x48, 0xED, 0x00, 0x02, 0x08, 0x48, 0xFD,
+                                0xF8, 0x01, 0x08, 0x48, 0xF9, 0xF7, 0x01, 0x08, 
+                                0x48, 0xA6, 0x00, 0x86, 0x50, 0xA6, 0x02, 0x86,
+                                0x51, 0xA6, 0x05, 0xE1, 0x4B, 0x08, 0x48, 0xA6, 
+                                0xFF, 0x86, 0x50, 0xA6, 0x01, 0x86, 0x51, 0xA4,
+                                0x01, 0xF1, 0x50, 0x08, 0x48, 0xA9, 0xFF, 0xE9, 
+                                0x01, 0x08, 0x48, 0x18, 0xA9, 0xFF, 0xE9, 0xA0,
+                                0x08, 0x48, 0xE9, 0x01, 0x08, 0x48, 0xE9, 0x02
                         };
 
                         write_program(cpu, program);
@@ -510,8 +516,8 @@ SCENARIO("6502 instructions work")
                                 CHECK(cpu.x == 0x00);
                                 CHECK(cpu.y == 0x00);
                                 CHECK(cpu.p == 0x21);
-                                CHECK(cpu.pc == 0x064D);
-                                CHECK(cpu.sp == 0xF4);
+                                CHECK(cpu.pc == 0x0658);
+                                CHECK(cpu.sp == 0xE9);
                                 for (unsigned i = 0;
                                      i < program_start;
                                      ++i) {
@@ -519,38 +525,71 @@ SCENARIO("6502 instructions work")
                                         case 0x04:
                                                 CHECK(cpu.memory->read_byte(i) == 0x02);
                                                 break;
-                                        case 0x01F5:
+                                        case 0x01EA:
                                                 CHECK(cpu.memory->read_byte(i) == 0x5D);
                                                 break;
-                                        case 0x01F6:
+                                        case 0x01EB:
+                                                CHECK(cpu.memory->read_byte(i) == 0x21);
+                                                break;
+                                        case 0x01EC:
                                                 CHECK(cpu.memory->read_byte(i) == 0x5E);
                                                 break;
-                                        case 0x01F7:
+                                        case 0x01ED:
+                                                CHECK(cpu.memory->read_byte(i) == 0x21);
+                                                break;
+                                        case 0x01EE:
                                                 CHECK(cpu.memory->read_byte(i) == 0xFE);
+                                                break;
+                                        case 0x01EF:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA1);
+                                                break;
+                                        case 0x01F0:
+                                                CHECK(cpu.memory->read_byte(i) == 0x03);
+                                                break;
+                                        case 0x01F1:
+                                                CHECK(cpu.memory->read_byte(i) == 0x21);
+                                                break;
+                                        case 0x01F2:
+                                                CHECK(cpu.memory->read_byte(i) == 0x03);
+                                                break;
+                                        case 0x01F3:
+                                                CHECK(cpu.memory->read_byte(i) == 0x21);
+                                                break;
+                                        case 0x01F4:
+                                                CHECK(cpu.memory->read_byte(i) == 0x03);
+                                                break;
+                                        case 0x01F5:
+                                                CHECK(cpu.memory->read_byte(i) == 0x21);
+                                                break;
+                                        case 0x01F6:
+                                                CHECK(cpu.memory->read_byte(i) == 0xFE);
+                                                break;
+                                        case 0x01F7:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA0);
                                                 break;
                                         case 0x01F8:
                                                 CHECK(cpu.memory->read_byte(i) == 0xF8);
                                                 break;
                                         case 0x01F9:
-                                                CHECK(cpu.memory->read_byte(i) == 0xF8);
+                                                CHECK(cpu.memory->read_byte(i) == 0xA1);
                                                 break;
                                         case 0x01FA:
-                                                CHECK(cpu.memory->read_byte(i) == 0xF8);
-                                                break;
-                                        case 0x01FB:
-                                                CHECK(cpu.memory->read_byte(i) == 0xF8);
-                                                break;
-                                        case 0x01FC:
-                                                CHECK(cpu.memory->read_byte(i) == 0xF8);
-                                                break;
-                                        case 0x01FD:
                                                 CHECK(cpu.memory->read_byte(i) == 0xFA);
                                                 break;
-                                        case 0x01FE:
+                                        case 0x01FB:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA1);
+                                                break;
+                                        case 0x01FC:
                                                 CHECK(cpu.memory->read_byte(i) == 0xFC);
                                                 break;
-                                        case 0x01FF:
+                                        case 0x01FD:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA1);
+                                                break;
+                                        case 0x01FE:
                                                 CHECK(cpu.memory->read_byte(i) == 0xFF);
+                                                break;
+                                        case 0x01FF:
+                                                CHECK(cpu.memory->read_byte(i) == 0xA0);
                                                 break;
                                         case 0x0200:
                                                 CHECK(cpu.memory->read_byte(i) == 0x02);
@@ -561,7 +600,7 @@ SCENARIO("6502 instructions work")
                                         }
                                 }
                         }
-                }*/
+                }
 
                 WHEN("Some values are AND'ed")
                 {
