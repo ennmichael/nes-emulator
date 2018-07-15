@@ -59,44 +59,22 @@ unsigned pull_pointer(CPU& cpu) noexcept
 }
 
 UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
-        : runtime_error(error_message(opcode))
+        : runtime_error("Unknown opcode "s + Utils::format_hex(opcode, 2) + "."s)
 {}
 
-std::string UnknownOpcode::error_message(Byte opcode) noexcept
-{
-        std::stringstream ss;
-        ss << "Unknown opcode " << Utils::format_hex(opcode) << ".";
-        return ss.str();
-}
-
-void CPU::RAM::write_byte(unsigned address, Byte byte)
+void CPU::RAM::do_write_byte(unsigned address, Byte byte)
 {
         ram_[translate_address(address)] = byte;
 }
 
-Byte CPU::RAM::read_byte(unsigned address) const
+Byte CPU::RAM::do_read_byte(unsigned address) const
 {
         return ram_[translate_address(address)];
 }
 
-unsigned CPU::RAM::translate_address(unsigned address) noexcept
+unsigned CPU::RAM::translate_address(unsigned address) const noexcept
 {
         return address % real_size;
-}
-
-void CPU::InterruptVector::write_byte(unsigned address, Byte byte)
-{
-        vector_[translate_address(address)] = byte;
-}
-
-Byte CPU::InterruptVector::read_byte(unsigned address) const
-{
-        return vector_[translate_address(address)];
-}
-
-unsigned CPU::InterruptVector::translate_address(unsigned address) noexcept
-{
-        return address - bottom;
 }
 
 unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
@@ -109,10 +87,10 @@ unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
         }
 }
 
-void CPU::execute_program(unsigned program_size)
+void CPU::execute_program()
 {
-        unsigned const start = pc;
-        while (pc != start + program_size)
+        load_interrupt_handler(Interrupt::reset);
+        for (;;)
                 execute_instruction();
 }
 
@@ -133,19 +111,32 @@ void CPU::status(unsigned flag, bool value) noexcept
         p.set(flag, value);
 }
 
-void CPU::raise_interrupt(Interrupt interrupt)
+void CPU::hardware_interrupt(Interrupt interrupt)
 {
+        if (interrupt == Interrupt::reset) {
+                *this = CPU();
+                execute_program();
+                return;
+        }
+
+        if (interrupt == Interrupt::irq && status(interrupt_disable_flag))
+                return;
+
         Stack::push_pointer(*this, pc);
         Stack::push_byte(*this, Utils::to_byte(p));
-        status(CPU::break_flag, false);
         status(interrupt_disable_flag, true);
-        pc = interrupt_handler(interrupt);
+        load_interrupt_handler(interrupt);
 }
 
-unsigned CPU::interrupt_handler(Interrupt interrupt) noexcept
+unsigned CPU::interrupt_handler(Interrupt interrupt) const noexcept
 {
         unsigned const pointer_address = interrupt_handler_address(interrupt);
         return memory->read_pointer(pointer_address);
+}
+
+void CPU::load_interrupt_handler(Interrupt interrupt) noexcept
+{
+        pc = interrupt_handler(interrupt);
 }
 
 }

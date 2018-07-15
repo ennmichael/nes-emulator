@@ -476,9 +476,24 @@ Byte ror(CPU& cpu, Byte operand) noexcept
         return result;
 }
 
+// Does BRK respect the I flag? I'm assuming the answer is yes.
+void brk(CPU& cpu) noexcept
+{
+        if (cpu.status(CPU::interrupt_disable_flag))
+                return;
+
+        Stack::push_pointer(cpu, cpu.pc + 2);
+        cpu.status(CPU::break_flag, true);
+        Stack::push_byte(cpu, Utils::to_byte(cpu.p));
+        cpu.status(CPU::break_flag, false);
+        cpu.status(CPU::interrupt_disable_flag, true);
+        cpu.load_interrupt_handler(CPU::Interrupt::irq);
+}
+
 void rti(CPU& cpu) noexcept
 {
         cpu.p = Stack::pull_byte(cpu);
+        cpu.status(CPU::break_flag, false);
         cpu.pc = Stack::pull_pointer(cpu);
 }
 
@@ -547,6 +562,7 @@ void tya(CPU& cpu) noexcept
 Instruction CPU::translate_opcode(Byte opcode)
 {
         switch (opcode) {
+                case 0x00: return brk;
                 case 0x01: return indirect_x(ora);
                 case 0x05: return zero_page(ora);
                 case 0x06: return zero_page(asl);

@@ -20,6 +20,15 @@ void write_program(Emulator::CPU& cpu, Emulator::Bytes const& program) noexcept
         }
 }
 
+void execute_example_program(Emulator::CPU& cpu,
+                             Emulator::Bytes const& program)
+{
+        cpu.pc = program_start;
+        write_program(cpu, program);
+        while (cpu.pc != program_start + program.size())
+                cpu.execute_instruction();
+}
+
 }
 
 SCENARIO("6502 instructions work")
@@ -27,8 +36,7 @@ SCENARIO("6502 instructions work")
         GIVEN("The CPU")
         {
                 Emulator::CPU cpu {
-                        .memory = std::make_unique<Emulator::CPU::RAM>(),
-                        .pc = program_start
+                        .memory = std::make_unique<Emulator::CPU::RAM>()
                 };
 
                 WHEN("Some values are loaded into the regisers")
@@ -43,8 +51,7 @@ SCENARIO("6502 instructions work")
                                 0xA9, 0x01, 0xA2, 0x02, 0xA0, 0x03
                         };
                         
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -108,8 +115,7 @@ SCENARIO("6502 instructions work")
                                 0x04
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -193,8 +199,7 @@ SCENARIO("6502 instructions work")
                                 0xA9, 0x11, 0x48, 0xA9, 0x00, 0x48, 0x08, 0x68, 0x28
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -318,8 +323,7 @@ SCENARIO("6502 instructions work")
                                 0x08, 0x69, 0x01, 0x48, 0x08, 0x69, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -507,8 +511,7 @@ SCENARIO("6502 instructions work")
                                 0x08, 0x48, 0xE9, 0x01, 0x08, 0x48, 0xE9, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -664,8 +667,7 @@ SCENARIO("6502 instructions work")
                                 0x31, 0x41, 0x08, 0x48
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -775,8 +777,7 @@ SCENARIO("6502 instructions work")
                                 0x08, 0xDE, 0xFD, 0x03, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -859,8 +860,7 @@ SCENARIO("6502 instructions work")
                                 0x08, 0xFE, 0xFD, 0x03, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -933,8 +933,7 @@ SCENARIO("6502 instructions work")
                                 0x42, 0x9A, 0x08, 0x48
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1001,8 +1000,7 @@ SCENARIO("6502 instructions work")
                                 0x1E, 0x00, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1100,8 +1098,7 @@ SCENARIO("6502 instructions work")
                                 0x01, 0x08, 0x2C, 0x01, 0x02, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1234,8 +1231,7 @@ SCENARIO("6502 instructions work")
                                 0x51, 0x41, 0x08, 0x48
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1349,8 +1345,7 @@ SCENARIO("6502 instructions work")
                                 0x7F, 0x69, 0x01, 0x08, 0xB8, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1429,8 +1424,7 @@ SCENARIO("6502 instructions work")
                                 0x5E, 0x00, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1535,8 +1529,7 @@ SCENARIO("6502 instructions work")
                                 0x11, 0x41, 0x08, 0x48
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1666,8 +1659,7 @@ SCENARIO("6502 instructions work")
                                 0x48, 0xC8, 0x98, 0x48
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1749,8 +1741,7 @@ SCENARIO("6502 instructions work")
                                 0x3E, 0x00, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1823,8 +1814,7 @@ SCENARIO("6502 instructions work")
                                 0x7E, 0x00, 0x02
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -1932,8 +1922,7 @@ SCENARIO("6502 instructions work")
                                 0x02, 0xD1, 0x41, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2049,8 +2038,7 @@ SCENARIO("6502 instructions work")
                                 0x02, 0x02, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2160,8 +2148,7 @@ SCENARIO("6502 instructions work")
                                 0x02, 0x02, 0x08
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2235,8 +2222,7 @@ SCENARIO("6502 instructions work")
                                 0x4C, 0x05, 0x06, 0xA9, 0x01, 0xA9, 0x00
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2347,8 +2333,7 @@ SCENARIO("6502 instructions work")
                                 0xEA
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2414,8 +2399,7 @@ SCENARIO("6502 instructions work")
                                 0x1A, 0x06, 0xEA
                         };
 
-                        write_program(cpu, program);
-                        cpu.execute_program(program.size());
+                        execute_example_program(cpu, program);
 
                         THEN("The results are correct")
                         {
@@ -2461,7 +2445,7 @@ SCENARIO("6502 instructions work")
                         }
                 }
                 
-
+                // TODO Test BRK, if that's even possible
         }
 }
 

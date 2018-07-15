@@ -19,9 +19,6 @@ namespace Emulator {
 class UnknownOpcode : public std::runtime_error {
 public:
         explicit UnknownOpcode(Byte opcode) noexcept;
-
-private:
-        static std::string error_message(Byte opcode) noexcept;
 };
 
 struct CPU;
@@ -44,46 +41,18 @@ struct CPU {
 public:
         class RAM : public Memory {
         public:
-                static unsigned constexpr bottom = 0x0000u;
-                static unsigned constexpr top = 0x2000u;
-
-                static unsigned constexpr real_size = 0x800u;
-                static unsigned constexpr mirrors_size = top - real_size;
-
-                void write_byte(unsigned address, Byte byte) override;
-                Byte read_byte(unsigned address) const override;
+                static unsigned constexpr start = 0x0000u;
+                static unsigned constexpr end = 0x2000u;
+                static unsigned constexpr real_size = 0x0800u;
+                static unsigned constexpr mirrors_size = end - real_size;
 
         private:
-                static unsigned translate_address(unsigned address) noexcept;
+                void do_write_byte(unsigned address, Byte byte) override;
+                Byte do_read_byte(unsigned address) const override;
+
+                unsigned translate_address(unsigned address) const noexcept;
 
                 std::array<Byte, real_size> ram_ {0};
-        };
-
-        class InterruptVector : public Memory {
-        public:
-                static unsigned constexpr bottom = 0xFFFA;
-                static unsigned constexpr top = 0x10000;
-
-                void write_byte(unsigned address, Byte byte) override;
-                Byte read_byte(unsigned address) const override;
-
-        private:
-                static unsigned translate_address(unsigned address) noexcept;
-
-                std::array<Byte, top - bottom> vector_ {0};
-        };
-
-        class AccessibleMemory : public Memory {
-        public:
-                AccessibleMemory(Cartridge& cartridge, PPU& ppu) noexcept;
-
-                void write_byte(unsigned address, Byte byte) override;
-                Byte read_byte(unsigned address) const override;
-
-        private:
-                CPU::RAM ram_;
-                Cartridge* cartridge_;
-                PPU* ppu_;
         };
 
         enum class Interrupt {
@@ -114,14 +83,15 @@ public:
         Byte y = 0;
         ByteBitset p = 0x20;
 
-        void execute_program(unsigned program_size);
+        void execute_program();
         void execute_instruction();
 
         bool status(unsigned flag) const noexcept;
         void status(unsigned flag, bool value) noexcept;
 
-        void raise_interrupt(Interrupt interrupt);
-        unsigned interrupt_handler(Interrupt interrupt) noexcept;
+        void hardware_interrupt(Interrupt interrupt);
+        unsigned interrupt_handler(Interrupt interrupt) const noexcept;
+        void load_interrupt_handler(Interrupt interrupt) noexcept;
 };
 
 }

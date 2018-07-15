@@ -1,7 +1,28 @@
 #include "mem.h"
 #include <utility>
 
+using namespace std::string_literals;
+
 namespace Emulator {
+
+Memory::InvalidAddress::InvalidAddress(unsigned address,
+                                       std::string const& access) noexcept
+        : runtime_error("Can't "s + access + " "s + Utils::format_hex(address, 4))
+{}
+
+void Memory::write_byte(unsigned address, Byte byte)
+{
+        if (!address_is_writable(address))
+                throw InvalidAddress(address, "read"s);
+        do_write_byte(address, byte);
+}
+
+Byte Memory::read_byte(unsigned address) const
+{
+        if (!address_is_readable(address))
+                throw InvalidAddress(address, "write"s);
+        return do_read_byte(address);
+}
 
 void Memory::write_pointer(unsigned address, unsigned pointer)
 {

@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "sdl++.h"
 #include <climits>
+#include <iomanip>
 
 using namespace std::string_literals;
 
@@ -39,15 +40,14 @@ CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
 
-std::string format_hex(Byte byte)
+std::string format_hex(Byte byte, int width)
 {
         std::stringstream ss;
-
-        if (byte <= 0x0F)
-                ss << "0x0" << std::hex << static_cast<unsigned>(byte);
-        else
-                ss << "0x" << std::hex << static_cast<unsigned>(byte);
-
+        ss << "0x"
+           << std::setfill('0')
+           << std::setw(width)
+           << std::hex
+           << static_cast<unsigned>(byte);
         return ss.str();
 }
 

@@ -37,3 +37,10 @@ Parallel communication - done multiple bits at a time.
 There's also serial and parallel ports. It's intuitive why multiple-bit
 communication is called "parallel."
 
+
+tile = 8x8 pixels
+name table = 32x30 tiles (indice [how is the indexing done?])
+
+tiles are kept in pattern tables
+attribute tables describe what's going on on the screen [?]
+

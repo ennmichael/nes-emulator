@@ -13,19 +13,13 @@
 namespace Emulator {
 
 static_assert(CHAR_BIT == 8, "Byte not 8 bits.");
-static_assert(-1 == ~0, "Two's complement not used.");
 static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 
 /**
  * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
- * functions Utils::split_pointer and Utils::create_pointer. The changes should
+ * Utils::split_pointer and Utils::create_pointer. The changes should
  * be fairly easy.
- */
-
-/**
- * TODO I shouldn't need to enforce two's complement, I should just write functions
- * for two's complement conversion.
  */
 
 template <class T>
@@ -36,7 +30,6 @@ using Byte = unsigned char;
 using Bytes = std::vector<Byte>;
 
 using ByteBitset = std::bitset<CHAR_BIT>;
-using ExtendedByteBitset = std::bitset<CHAR_BIT + 1>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
 SignedByte constexpr signed_byte_max = std::numeric_limits<SignedByte>::max();
@@ -69,7 +62,7 @@ public:
         explicit CantOpenFile(std::string const& path);
 };
 
-std::string format_hex(Byte byte);
+std::string format_hex(Byte byte, int width);
 
 template <std::size_t N>
 auto to_byte(std::bitset<N> bits) noexcept
