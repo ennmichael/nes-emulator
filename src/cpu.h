@@ -46,6 +46,9 @@ public:
                 static unsigned constexpr real_size = 0x0800u;
                 static unsigned constexpr mirrors_size = end - real_size;
 
+                bool address_is_writable(unsigned address) const noexcept override;
+                bool address_is_readable(unsigned address) const noexcept override;
+
         private:
                 void do_write_byte(unsigned address, Byte byte) override;
                 Byte do_read_byte(unsigned address) const override;

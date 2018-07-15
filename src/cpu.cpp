@@ -62,6 +62,16 @@ UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
         : runtime_error("Unknown opcode "s + Utils::format_hex(opcode, 2) + "."s)
 {}
 
+bool CPU::RAM::address_is_writable(unsigned address) const noexcept
+{
+        return start <= address && address < end;
+}
+
+bool CPU::RAM::address_is_readable(unsigned address) const noexcept
+{
+        return address_is_writable(address);
+}
+
 void CPU::RAM::do_write_byte(unsigned address, Byte byte)
 {
         ram_[translate_address(address)] = byte;
