@@ -23,7 +23,7 @@ public:
 
 struct CPU;
 
-namespace Stack {
+namespace Stack { // Not the simplest thing, use member functions
 
 unsigned constexpr bottom_address = 0x100u;
 
@@ -38,7 +38,6 @@ unsigned pull_pointer(CPU& cpu) noexcept;
 using Instruction = std::function<void(CPU& cpu)>;
 
 struct CPU {
-public:
         class RAM : public Memory {
         public:
                 static unsigned constexpr start = 0x0000u;
@@ -46,13 +45,12 @@ public:
                 static unsigned constexpr real_size = 0x0800u;
                 static unsigned constexpr mirrors_size = end - real_size;
 
-                bool address_is_writable(unsigned address) const noexcept override;
-                bool address_is_readable(unsigned address) const noexcept override;
+                static bool address_is_accessible(unsigned addres) const noexcept;
+                
+                void write_byte(unsigned address, Byte byte) override;
+                Byte read_byte(unsigned address) const override;
 
         private:
-                void do_write_byte(unsigned address, Byte byte) override;
-                Byte do_read_byte(unsigned address) const override;
-
                 unsigned translate_address(unsigned address) const noexcept;
 
                 std::array<Byte, real_size> ram_ {0};

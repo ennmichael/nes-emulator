@@ -10,110 +10,133 @@ MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
         : runtime_error("RAM mapper " + std::to_string(id) + " not supported.")
 {}
 
-bool Cartridge::Header::has_chr_ram() const noexcept
+NESFile::NESFile(std::string const& path)
+        : NESFile(Utils::read_bytes(path))
+{}
+
+NESFile::NESFile(Bytes new_data)
+        : data(std::move(new_data))
 {
-        return num_chr_rom_banks == 0;
+        check_data_size();
+        check_header_footprint();
 }
 
-auto Cartridge::Header::parse(std::string const& path) -> Header
+Byte NESFile::num_prg_rom_banks() const noexcept
 {
-        return parse(Utils::read_bytes(path));
+        return data[4];
 }
 
-auto Cartridge::Header::parse(Bytes const& data) -> Header
+Byte NESFile::num_chr_rom_banks() const noexcept
 {
-        if (data.size() < size)
+        return data[5];
+}
+
+Byte NESFile::mmc_id() const noexcept
+{
+        ByteBitset const first_half = first_control_byte() >> CHAR_BIT/2;
+        ByteBitset const second_half = second_control_byte() << CHAR_BIT/2;
+        return Utils::to_byte(first_half | second_half);
+}
+
+bool NESFile::has_sram() const noexcept
+{
+        return first_control_byte().test(1);
+}
+
+bool NESFile::has_trainer() const noexcept
+{
+        return first_control_byte().test(2);
+}
+
+Mirroring NESFile::mirroring() const noexcept
+{
+        if (first_control_byte().test(3))
+                return Mirroring::four_screen;
+        else if (first_control_byte().test(0))
+                return Mirroring::vertical;
+        return Mirroring::horizontal;
+}
+
+bool NESFile::has_chr_ram() const noexcept
+{
+        return num_chr_rom_banks() == 0;
+}
+
+ByteBitset NESFile::first_control_byte() const noexcept
+{
+        return data[6];
+}
+
+ByteBitset NESFile::second_control_byte() const noexcept
+{
+        return data[7];
+}
+
+void NESFile::check_data_size() const
+{
+        if (data.size() < header_size)
                 throw InvalidCartridgeHeader("Cartridge header too small.");
+}
 
+void NESFile::check_header_footprint() const
+{
         if (data[0] != 'N' ||
             data[1] != 'E' ||
             data[2] != 'S' ||
             data[3] != 0x1Au)
                 throw InvalidCartridgeHeader("Invalid cartridge header footprint.");
-
-        ByteBitset const first_control_byte(data[6]);
-        ByteBitset const second_control_byte(data[7]);
-
-        return Header {
-                .num_prg_rom_banks = data[4],
-                .num_chr_rom_banks = data[5],
-                .mmc_id = parse_mmc_id(first_control_byte, second_control_byte),
-                .has_battery_backed_sram = first_control_byte.test(1),
-                .has_trainer = first_control_byte.test(2),
-                .mirroring = parse_mirroring(first_control_byte)
-        };
-}
-
-Mirroring Cartridge::Header::parse_mirroring(ByteBitset first_control_byte) noexcept
-{
-        if (first_control_byte.test(3))
-                return Mirroring::four_screen;
-        else if (first_control_byte.test(0))
-                return Mirroring::vertical;
-        return Mirroring::horizontal;
-}
-
-Byte Cartridge::Header::parse_mmc_id(ByteBitset first_control_byte,
-                                     ByteBitset second_control_byte) noexcept
-{
-        first_control_byte >>= CHAR_BIT/2;
-        second_control_byte <<= CHAR_BIT/2;
-        ByteBitset const result = first_control_byte | second_control_byte;
-        return Utils::to_byte(result);
 }
 
 UniqueCartridge Cartridge::make(std::string const& path)
 {
-        return make(Utils::read_bytes(path));
+        return make(NESFile(path));
 }
 
-UniqueCartridge Cartridge::make(Bytes data)
+UniqueCartridge Cartridge::make(NESFile nes_file)
 {
-        auto const header = Header::parse(data);
+        if (nes_file.has_trainer())
+                throw InvalidCartridge("Trainers are not supported.");
 
-        if (header.has_trainer)
-                throw InvalidCartridge("Trainers are not supported."s);
-
-        switch (header.mmc_id) {
-                case NROM::id: return std::make_unique<NROM>(header, std::move(data));
-                default:       throw MemoryMapperNotSupported(header.mmc_id);
+        switch (nes_file.mmc_id()) {
+                case NROM::id: return std::make_unique<NROM>(std::move(nes_file));
+                default:       throw MemoryMapperNotSupported(nes_file.mmc_id());
         }
 }
 
-NROM::NROM(Header header, Bytes data)
-        : header_(header)
-        , data_(data)
+NROM::NROM(NESFile nes_file)
+        : nes_file_(std::move(nes_file))
 {
-        assert(header_.mmc_id == id);
+        assert(nes_file_.mmc_id() == id);
 
-        if (header_.num_prg_rom_banks != 1 && header_.num_prg_rom_banks != 2) {
+        if (nes_file_.num_prg_rom_banks() != 1 &&
+            nes_file_.num_prg_rom_banks() != 2) {
                 throw InvalidCartridgeHeader(
                         "NROM must have either 1 or 2 "
                         "16 KB PRG ROM banks. This one has "s +
-                        std::to_string(header_.num_prg_rom_banks) +
+                        std::to_string(nes_file_.num_prg_rom_banks()) +
                         "."s);
         }
 
-        if (header_.num_chr_rom_banks != 1) {
+        if (nes_file_.num_chr_rom_banks() != 1) {
                 throw InvalidCartridgeHeader(
                         "NROM must have a single 8 KB "
                         "CHR ROM bank. This one has "s +
-                        std::to_string(header_.num_chr_rom_banks) +
+                        std::to_string(nes_file_.num_chr_rom_banks()) +
                         "."s);
         }
 
-        if (header_.has_battery_backed_sram) {
+        if (nes_file_.has_sram()) {
                 throw InvalidCartridgeHeader("NROM doesn't have battery-backed SRAM, "
                                              "but this cartridge does.");
         }
 }
 
-bool Cartridge::address_is_writable(unsigned address) const noexcept
+bool NROM::address_is_writable(unsigned address) const noexcept
 {
         return prg_ram_start <= address && address < prg_ram_end;
 }
 
-bool Cartridge::address_is_readable(unsigned address) const noexcept
+bool NROM::address_is_readable(unsigned address) const noexcept
 {
         return prg_rom_lower_bank_start <= address && 
                address < prg_rom_upper_bank_end;
@@ -121,21 +144,31 @@ bool Cartridge::address_is_readable(unsigned address) const noexcept
 
 // TODO: I don't know how I should handle CHR-ROM. Something with the PPU?
 
-void NROM::do_write_byte(unsigned address, Byte byte)
+void NROM::write_byte(unsigned address, Byte byte)
 {
+        if (!address_is_writable(address)) {
+                throw InvalidAddress("Can't write to NROM address "s +
+                                     Utils::format_address(address));
+        }
+
         prg_ram_[address] = byte;
 }
 
-Byte NROM::do_read_byte(unsigned address) const
+Byte NROM::read_byte(unsigned address) const
 {
+        if (!address_is_readable(address)) {
+                throw InvalidAddress("Can't read NROM address "s +
+                                     Utils::format_address(address));
+        }
+
         if (address_is_writable(address))
                 return prg_ram_[address];
 
-        if (header_.num_prg_rom_banks == 1 && address < prg_rom_upper_bank_start)
+        if (nes_file_.num_prg_rom_banks() == 1 && address < prg_rom_upper_bank_start)
                 address += prg_rom_bank_size;
 
-        address += nes_file_prg_rom_start;
-        return data_[address];
+        address += NESFile::prg_rom_start;
+        return nes_file_.data[address];
 }
 
 }

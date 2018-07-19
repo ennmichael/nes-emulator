@@ -1,10 +1,6 @@
 #include "cpu.h"
 
 /**
- * TODO Implement adc and sbc via Utils::add_bits.
- */
-
-/**
  * TODO Implement RTI, test interrupt handling.
  */
 

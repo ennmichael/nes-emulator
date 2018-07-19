@@ -16,6 +16,11 @@ static_assert(CHAR_BIT == 8, "Byte not 8 bits.");
 static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 
 /**
+ * TODO Using unsigned for addresses instead of std::uint16 is a big mistake.
+ * Fix it.
+ */
+
+/**
  * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
  * Utils::split_pointer and Utils::create_pointer. The changes should
@@ -27,7 +32,8 @@ using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
 
 using SignedByte = signed char;
 using Byte = unsigned char;
-using Bytes = std::vector<Byte>;
+using Bytes = std::vector<Byte>; // TODO Rename -> ByteVector
+// TODO Have ByteArray
 
 using ByteBitset = std::bitset<CHAR_BIT>;
 
@@ -62,7 +68,8 @@ public:
         explicit CantOpenFile(std::string const& path);
 };
 
-std::string format_hex(Byte byte, int width);
+std::string format_hex(unsigned value, int width);
+std::string format_address(unsigned address);
 
 template <std::size_t N>
 auto to_byte(std::bitset<N> bits) noexcept
@@ -96,9 +103,24 @@ struct BytePair {
         Byte high;
 };
 
-BytePair split_address(unsigned address) noexcept;
-unsigned create_address(Byte low, Byte high) noexcept;
-unsigned create_address(BytePair byte_pair) noexcept;
+BytePair split_bytes(unsigned two_bytes) noexcept;
+unsigned combine_bytes(Byte low, Byte high) noexcept;
+unsigned combine_bytes(BytePair byte_pair) noexcept;
+
+BytePair split_address(unsigned address) noexcept
+{
+        return split_bytes(address);
+}
+
+unsigned create_address(Byte low, Byte high) noexcept
+{
+        return combine_bytes(low, high);
+}
+
+unsigned create_address(BytePair byte_pair) noexcept
+{
+        return combine_bytes(byte_pair);
+}
 
 }
 

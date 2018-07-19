@@ -32,7 +32,6 @@ namespace Utils {
 namespace {
 
 unsigned constexpr low_byte_mask  = 0x00FFu;
-unsigned constexpr high_byte_mask = 0xFF00u;
 
 }
 
@@ -40,15 +39,20 @@ CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
 
-std::string format_hex(Byte byte, int width)
+std::string format_hex(unsigned value, int width)
 {
         std::stringstream ss;
         ss << "0x"
            << std::setfill('0')
            << std::setw(width)
            << std::hex
-           << static_cast<unsigned>(byte);
+           << value;
         return ss.str();
+}
+
+std::string format_address(unsigned address)
+{
+        return format_hex(address, 4);
 }
 
 Bytes read_bytes(std::string const& path)
@@ -80,24 +84,24 @@ Bytes read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-BytePair split_address(unsigned pointer) noexcept
+BytePair split_bytes(unsigned pointer) noexcept
 {
         return {
                 .low = static_cast<Byte>(pointer & low_byte_mask),
-                .high = static_cast<Byte>((pointer & high_byte_mask) >> CHAR_BIT)
+                .high = static_cast<Byte>(pointer >> CHAR_BIT)
         };
 }
 
-unsigned create_address(Byte low, Byte high) noexcept
+unsigned combine_bytes(Byte low, Byte high) noexcept
 {
         return static_cast<unsigned>(low) |
                (static_cast<unsigned>(high) << CHAR_BIT);
 }
 
-unsigned create_address(BytePair byte_pair) noexcept
+unsigned combine_bytes(BytePair byte_pair) noexcept
 {
         auto const& [low, high] = byte_pair;
-        return create_address(low, high);
+        return combine_bytes(low, high);
 }
 
 }

@@ -2,6 +2,7 @@
 #include <utility>
 #include <string>
 #include <sstream>
+#include <cassert>
 
 // CPU::translate_opcode is defined in instruction_set.cpp
 
@@ -72,13 +73,40 @@ bool CPU::RAM::address_is_readable(unsigned address) const noexcept
         return address_is_writable(address);
 }
 
+bool CPU::RAM::address_is_accessible(unsigned address) const noexcept
+{
+        return start <= address && address < end;
+}
+
 void CPU::RAM::do_write_byte(unsigned address, Byte byte)
 {
+        if (!address_is_accessible(address)) {
+                throw Memory::InvalidAccess("Can't write to CPU RAM at address "s +
+                                            Utils::format_address(address) +
+                                            ". Valid range is "s +
+                                            Utils::format_address(start) +
+                                            " to "s +
+                                            Utils::format_address(end) +
+                                            "."s);
+                
+        }
+
         ram_[translate_address(address)] = byte;
 }
 
 Byte CPU::RAM::do_read_byte(unsigned address) const
 {
+        if (!address_is_accessible(address)) {
+                throw Memory::InvalidAccess("Can't read CPU RAM at address "s +
+                                            Utils::format_address(address) +
+                                            ". Valid range is "s +
+                                            Utils::format_address(start) +
+                                            " to "s +
+                                            Utils::format_address(end) +
+                                            "."s);
+                
+        }
+
         return ram_[translate_address(address)];
 }
 
@@ -93,8 +121,10 @@ unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
                 case Interrupt::nmi:   return 0xFFFA;
                 case Interrupt::reset: return 0xFFFC;
                 case Interrupt::irq:   return 0xFFFE;
-                default:               return 0x0000;
         }
+
+        assert(false);
+        return 0;
 }
 
 void CPU::execute_program()

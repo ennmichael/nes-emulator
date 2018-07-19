@@ -34,29 +34,33 @@ class Cartridge;
 
 using UniqueCartridge = std::unique_ptr<Cartridge>;
 
+struct NESFile {
+        static unsigned constexpr header_size = 0x10;
+        static unsigned constexpr prg_rom_start = header_size;
+
+        explicit NESFile(std::string const& path);
+        explicit NESFile(Bytes new_data);
+
+        Byte num_prg_rom_banks() const noexcept;
+        Byte num_chr_rom_banks() const noexcept;
+        Byte mmc_id() const noexcept;
+        bool has_sram() const noexcept;
+        bool has_trainer() const noexcept;
+        Mirroring mirroring() const noexcept;
+        bool has_chr_ram() const noexcept;
+
+        ByteBitset first_control_byte() const noexcept;
+        ByteBitset second_control_byte() const noexcept;
+        
+        Bytes data;
+
+private:
+        void check_data_size() const;
+        void check_header_footprint() const;
+};
+
 class Cartridge : public Memory {
 public:
-        // TODO There should be no "Header", these can be simple member functions
-        struct Header {
-                static unsigned constexpr size = 0x10;
-
-                static Header parse(std::string const& path);
-                static Header parse(Bytes const& data);
-
-                static Mirroring parse_mirroring(ByteBitset first_control_byte) noexcept;
-                static Byte parse_mmc_id(ByteBitset first_control_byte,
-                                         ByteBitset second_control_byte) noexcept;
-
-                Byte num_prg_rom_banks = 0;
-                Byte num_chr_rom_banks = 0;
-                Byte mmc_id = 0;
-                bool has_battery_backed_sram = false;
-                bool has_trainer = false;
-                Mirroring mirroring = Mirroring::horizontal;
-
-                bool has_chr_ram() const noexcept;
-        };
-
         static unsigned constexpr prg_ram_start = 0x6000;
         static unsigned constexpr prg_ram_bank_size = 0x2000;
         static unsigned constexpr prg_ram_end = prg_ram_start + prg_ram_bank_size;
@@ -69,27 +73,24 @@ public:
         static unsigned constexpr prg_rom_upper_bank_end =
                 prg_rom_upper_bank_start + prg_rom_bank_size;
 
-        static unsigned constexpr nes_file_prg_rom_start = Header::size;
-
-        bool address_is_writable(unsigned address) const noexcept override;
-        bool address_is_readable(unsigned address) const noexcept override;
-
         static UniqueCartridge make(std::string const& path);
-        static UniqueCartridge make(Bytes data);
+        static UniqueCartridge make(NESFile nes_file);
 };
 
 class NROM : public Cartridge {
 public:
         static Byte constexpr id = 0;
 
-        NROM(Header header, Bytes data);
+        explicit NROM(NESFile nes_file);
+
+        static bool address_is_writable(unsigned address) const noexcept;
+        static bool address_is_readable(unsigned address) const noexcept;
+
+        void write_byte(unsigned address, Byte byte) override;
+        Byte read_byte(unsigned address) const override;
 
 private:
-        void do_write_byte(unsigned address, Byte byte) override;
-        Byte do_read_byte(unsigned address) const override;
-
-        Header header_;
-        Bytes data_;
+        NESFile nes_file_;
         std::array<Byte, 0x2000> prg_ram_ {0};
 };
 
