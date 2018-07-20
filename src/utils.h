@@ -16,7 +16,7 @@ static_assert(CHAR_BIT == 8, "Byte not 8 bits.");
 static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 
 /**
- * TODO Using unsigned for addresses instead of std::uint16 is a big mistake.
+ * TODO Using unsigned for addresses instead of std::uint_16 is a big mistake.
  * Fix it.
  */
 
@@ -51,13 +51,6 @@ Byte decode(int value) noexcept;
 }
 
 namespace Utils {
-
-// TODO Do I need this?
-template <std::size_t N>
-auto add_bits(std::bitset<N> b1, std::bitset<N> b2)
-{
-        return std::bitset<N + 1>(b1.to_ullong() + b2.to_ullong());
-}
 
 template <class F, class... Args>
 bool constexpr returns_void =
@@ -98,6 +91,9 @@ T set_bit(T t, unsigned bit_num, bool value=true) noexcept
         return bits.to_ullong();
 }
 
+unsigned constexpr low_byte_mask  = 0x00FFu;
+unsigned constexpr high_byte_mask = 0xFF00u;
+
 struct BytePair {
         Byte low;
         Byte high;
@@ -107,17 +103,17 @@ BytePair split_bytes(unsigned two_bytes) noexcept;
 unsigned combine_bytes(Byte low, Byte high) noexcept;
 unsigned combine_bytes(BytePair byte_pair) noexcept;
 
-BytePair split_address(unsigned address) noexcept
+inline BytePair split_address(unsigned address) noexcept
 {
         return split_bytes(address);
 }
 
-unsigned create_address(Byte low, Byte high) noexcept
+inline unsigned create_address(Byte low, Byte high) noexcept
 {
         return combine_bytes(low, high);
 }
 
-unsigned create_address(BytePair byte_pair) noexcept
+inline unsigned create_address(BytePair byte_pair) noexcept
 {
         return combine_bytes(byte_pair);
 }

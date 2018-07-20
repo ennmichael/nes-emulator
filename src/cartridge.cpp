@@ -131,12 +131,12 @@ NROM::NROM(NESFile nes_file)
         }
 }
 
-bool NROM::address_is_writable(unsigned address) const noexcept
+bool NROM::address_is_writable(unsigned address) noexcept
 {
         return prg_ram_start <= address && address < prg_ram_end;
 }
 
-bool NROM::address_is_readable(unsigned address) const noexcept
+bool NROM::address_is_readable(unsigned address) noexcept
 {
         return prg_rom_lower_bank_start <= address && 
                address < prg_rom_upper_bank_end;

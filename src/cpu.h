@@ -45,7 +45,7 @@ struct CPU {
                 static unsigned constexpr real_size = 0x0800u;
                 static unsigned constexpr mirrors_size = end - real_size;
 
-                static bool address_is_accessible(unsigned addres) const noexcept;
+                static bool address_is_accessible(unsigned addres) noexcept;
                 
                 void write_byte(unsigned address, Byte byte) override;
                 Byte read_byte(unsigned address) const override;

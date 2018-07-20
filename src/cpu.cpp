@@ -63,48 +63,36 @@ UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
         : runtime_error("Unknown opcode "s + Utils::format_hex(opcode, 2) + "."s)
 {}
 
-bool CPU::RAM::address_is_writable(unsigned address) const noexcept
+bool CPU::RAM::address_is_accessible(unsigned address) noexcept
 {
         return start <= address && address < end;
 }
 
-bool CPU::RAM::address_is_readable(unsigned address) const noexcept
-{
-        return address_is_writable(address);
-}
-
-bool CPU::RAM::address_is_accessible(unsigned address) const noexcept
-{
-        return start <= address && address < end;
-}
-
-void CPU::RAM::do_write_byte(unsigned address, Byte byte)
+void CPU::RAM::write_byte(unsigned address, Byte byte)
 {
         if (!address_is_accessible(address)) {
-                throw Memory::InvalidAccess("Can't write to CPU RAM at address "s +
-                                            Utils::format_address(address) +
-                                            ". Valid range is "s +
-                                            Utils::format_address(start) +
-                                            " to "s +
-                                            Utils::format_address(end) +
-                                            "."s);
-                
+                throw InvalidAddress("Can't write to CPU RAM at address "s +
+                                     Utils::format_address(address) +
+                                     ". Valid range is "s +
+                                     Utils::format_address(start) +
+                                     " to "s +
+                                     Utils::format_address(end) +
+                                     "."s);
         }
 
         ram_[translate_address(address)] = byte;
 }
 
-Byte CPU::RAM::do_read_byte(unsigned address) const
+Byte CPU::RAM::read_byte(unsigned address) const
 {
         if (!address_is_accessible(address)) {
-                throw Memory::InvalidAccess("Can't read CPU RAM at address "s +
-                                            Utils::format_address(address) +
-                                            ". Valid range is "s +
-                                            Utils::format_address(start) +
-                                            " to "s +
-                                            Utils::format_address(end) +
-                                            "."s);
-                
+                throw InvalidAddress("Can't read CPU RAM at address "s +
+                                     Utils::format_address(address) +
+                                     ". Valid range is "s +
+                                     Utils::format_address(start) +
+                                     " to "s +
+                                     Utils::format_address(end) +
+                                     "."s);
         }
 
         return ram_[translate_address(address)];

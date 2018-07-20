@@ -29,12 +29,6 @@ Byte decode(int value) noexcept
 
 namespace Utils {
 
-namespace {
-
-unsigned constexpr low_byte_mask  = 0x00FFu;
-
-}
-
 CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}

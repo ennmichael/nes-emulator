@@ -10,13 +10,13 @@
 namespace Emulator
 {
 
+class InvalidAddress : public std::runtime_error {
+public:
+        using runtime_error::runtime_error;
+};
+
 class Memory {
 public:
-        class InvalidAddress : public std::runtime_error {
-        public:
-                using runtime_error::runtime_error;
-        };
-
         Memory() = default;
 
         Memory(Memory const&) = delete;
