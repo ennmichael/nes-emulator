@@ -10,7 +10,7 @@
 #include <vector>
 #include <optional>
 
-namespace Sdl {
+namespace Emulator::Sdl {
 
 using Keycode = SDL_Keycode;
 using Color = SDL_Color;
@@ -22,7 +22,6 @@ using Rect = SDL_Rect;
 using Rects = std::vector<Rect>;
 using Event = SDL_Event;
 using OptionalEvent = std::optional<Event>;
-
 
 namespace Colors {
         Color constexpr white {255, 255, 255, 255};
@@ -69,32 +68,24 @@ enum class Endianness {
 
 Endianness constexpr endianness {SDL_BYTEORDER}; 
 
-// Calls SDL_Init AND SDL_Quit automatically.
-class Initializer {
+class Scope {
 public:
-        Initializer();
-        ~Initializer();
-
-        Initializer(Initializer const&) = delete;
-        Initializer(Initializer&&) = delete;
-        
-        Initializer& operator=(Initializer const&) = delete;
-        Initializer& operator=(Initializer&&) = delete;
+        Scope();
+        ~Scope();
+        Scope(Scope const&) = delete;
+        Scope(Scope&&) = delete;
+        Scope& operator=(Scope const&) = delete;
+        Scope& operator=(Scope&&) = delete;
 };
 
-// Sets a new render draw color in the constructor,
-// resets to the old one in the destructor.
 class RendererColorGuard {
 public:
         RendererColorGuard(Renderer& Renderer, Color color);
-
+        ~RendererColorGuard();
         RendererColorGuard(RendererColorGuard const&) = delete;
         RendererColorGuard(RendererColorGuard&&) = delete;
-
         RendererColorGuard& operator=(RendererColorGuard const&) = delete;
         RendererColorGuard& operator=(RendererColorGuard&&) = delete;
-
-        ~RendererColorGuard();
 
 private:
         Renderer& renderer_;
@@ -106,21 +97,16 @@ UniqueRenderer create_renderer(Window& window, Color color=Colors::white);
 
 void set_render_color(Renderer& Renderer, Color color);
 Color get_render_color(Renderer& Renderer);
-
 void render_clear(Renderer& Renderer);
 void render_present(Renderer& Renderer);
+void render_filled_rect(Renderer& renderer, Rect rect);
+void render_filled_rect(Renderer& renderer, Rect rect, Color color);
 
 enum class Flip {
         none = SDL_FLIP_NONE,
         vertical = SDL_FLIP_VERTICAL,
         horizontal = SDL_FLIP_HORIZONTAL
 };
-
-// Uses current render color.
-void render_filled_rect(Renderer& renderer, Rect rect);
-
-// Uses specified color.
-void render_filled_rect(Renderer& renderer, Rect rect, Color color);
 
 void render_copy(Renderer& renderer,
                  Texture& texture,

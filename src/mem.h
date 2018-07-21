@@ -15,27 +15,30 @@ public:
         using runtime_error::runtime_error;
 };
 
-class Memory {
+class ReadableMemory {
 public:
-        Memory() = default;
+        ReadableMemory() = default;
+        ReadableMemory(ReadableMemory const&) = delete;
+        ReadableMemory(ReadableMemory&&) = delete;
+        ReadableMemory& operator=(ReadableMemory const&) = delete;
+        ReadableMemory& operator=(ReadableMemory&&) = delete;
+        virtual ~ReadableMemory() = default;
 
-        Memory(Memory const&) = delete;
-        Memory(Memory&&) = delete;
-
-        Memory& operator=(Memory const&) = delete;
-        Memory& operator=(Memory&&) = delete;
-
-        virtual ~Memory() = default;
-
-        virtual void write_byte(unsigned address, Byte byte) = 0;
-        virtual Byte read_byte(unsigned address) const = 0;
-
-        void write_pointer(unsigned address, unsigned pointer);
-        unsigned read_pointer(unsigned address) const;
-        Byte deref_byte(unsigned address) const;
-        unsigned deref_pointer(unsigned address) const;
+        virtual bool address_is_readable(unsigned address) const noexcept = 0;
+        virtual Byte read_byte(unsigned address) = 0;
+        unsigned read_pointer(unsigned address);
+        unsigned deref_pointer(unsigned address);
+        Byte deref_byte(unsigned address);
 };
 
+class Memory : public ReadableMemory {
+public:
+        virtual bool address_is_writable(unsigned address) const noexcept = 0;
+        virtual void write_byte(unsigned address, Byte byte) = 0;
+        void write_pointer(unsigned address, unsigned pointer);
+};
+
+using UniqueReadableMemory = std::unique_ptr<ReadableMemory>;
 using UniqueMemory = std::unique_ptr<Memory>;
 
 }

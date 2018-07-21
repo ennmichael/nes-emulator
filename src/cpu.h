@@ -12,8 +12,6 @@
 #include <variant>
 #include <stdexcept>
 
-#include <iostream>
-
 namespace Emulator {
 
 class UnknownOpcode : public std::runtime_error {
@@ -21,23 +19,10 @@ public:
         explicit UnknownOpcode(Byte opcode) noexcept;
 };
 
-struct CPU;
+using Instruction = std::function<void()>;
 
-namespace Stack { // Not the simplest thing, use member functions
-
-unsigned constexpr bottom_address = 0x100u;
-
-void push_byte(CPU& cpu, Byte byte) noexcept;
-void push_pointer(CPU& cpu, unsigned pointer) noexcept;
-
-Byte pull_byte(CPU& cpu) noexcept;
-unsigned pull_pointer(CPU& cpu) noexcept;
-
-}
-
-using Instruction = std::function<void(CPU& cpu)>;
-
-struct CPU {
+class CPU {
+public:
         class RAM : public Memory {
         public:
                 static unsigned constexpr start = 0x0000u;
@@ -46,9 +31,12 @@ struct CPU {
                 static unsigned constexpr mirrors_size = end - real_size;
 
                 static bool address_is_accessible(unsigned addres) noexcept;
-                
+                bool address_is_writable(unsigned address) const noexcept override;
+                bool address_is_readable(unsigned address) const noexcept override;
+
                 void write_byte(unsigned address, Byte byte) override;
-                Byte read_byte(unsigned address) const override;
+                Byte read_byte(unsigned address) override;
+                Byte read_byte(unsigned address) const;
 
         private:
                 unsigned translate_address(unsigned address) const noexcept;
@@ -62,8 +50,6 @@ struct CPU {
                 reset
         };
 
-        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept;
-
         static unsigned constexpr address_size = 2u;
 
         static unsigned constexpr carry_flag = 0u;
@@ -74,25 +60,27 @@ struct CPU {
         static unsigned constexpr overflow_flag = 6u;
         static unsigned constexpr negative_flag = 7u;  
 
-        static Instruction translate_opcode(Byte opcode);
+        explicit CPU(Memory& cartridge_memory, Memory& ppu_memory) noexcept;
+        CPU(CPU const& other) = delete;
+        CPU(CPU&& other) = default;
+        CPU& operator=(CPU const& other) = delete;
+        CPU& operator=(CPU&& other) = default;
+        ~CPU();
 
-        UniqueMemory memory;
-        unsigned pc = 0;
-        Byte sp = byte_max;
-        Byte a = 0;
-        Byte x = 0;
-        Byte y = 0;
-        ByteBitset p = 0x20;
+        unsigned constexpr stack_bottom_address = 0x100u;
 
-        void execute_program();
+        unsigned pc() const noexcept;
+        Byte sp() const noexcept;
+        Byte a() const noexcept;
+        Byte x() const noexcept;
+        Byte y() const noexcept;
+        Byte p() const noexcept;
         void execute_instruction();
-
-        bool status(unsigned flag) const noexcept;
-        void status(unsigned flag, bool value) noexcept;
-
         void hardware_interrupt(Interrupt interrupt);
-        unsigned interrupt_handler(Interrupt interrupt) const noexcept;
-        void load_interrupt_handler(Interrupt interrupt) noexcept;
+
+private:
+        struct Impl;
+        std::unique_ptr<Impl> impl_;
 };
 
 }

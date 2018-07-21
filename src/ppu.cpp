@@ -4,14 +4,24 @@ using namespace std::string_literals;
 
 namespace Emulator {
 
-bool VRAM::address_is_valid(unsigned address) noexcept
+bool VRAM::address_is_accessible(unsigned address) noexcept
 {
         return address < size;
 }
 
+bool VRAM::address_is_writable(unsigned address) const noexcept
+{
+        return address_is_accessible(address);
+}
+
+bool VRAM::address_is_readable(unsigned address) const noexcept
+{
+        return address_is_accessible(address);
+}
+
 void VRAM::write_byte(unsigned address, Byte byte)
 {
-        if (!address_is_valid(address)) {
+        if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't write to VRAM address"s +
                                      Utils::format_address(address));
         }
@@ -21,7 +31,7 @@ void VRAM::write_byte(unsigned address, Byte byte)
 
 Byte VRAM::read_byte(unsigned address) const
 {
-        if (!address_is_valid(address)) {
+        if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't read VRAM address"s +
                                      Utils::format_address(address));
         }
@@ -92,7 +102,7 @@ bool DoubleWriteRegister::complete() const noexcept
         return complete_;
 }
 
-PPU::PPU(Memory const& dma_memory) noexcept
+PPU::PPU(ReadableMemory& dma_memory) noexcept
         : dma_memory_(dma_memory)
 {}
 
@@ -101,6 +111,25 @@ void PPU::vblank_started()
 
 void PPU::vblank_finished()
 {}
+
+bool PPU::address_is_writable(unsigned address) const noexcept
+{
+        return address == control_register ||
+               address == mask_register ||
+               address == oam_address_register ||
+               address == oam_data_register ||
+               address == scroll_register ||
+               address == vram_address_register ||
+               address == vram_data_register ||
+               address == oam_dma_register;
+}
+
+bool PPU::address_is_readable(unsigned address) const noexcept
+{
+        return address == status_register ||
+               address == oam_data_register ||
+               address == vram_data_register;
+}
 
 void PPU::write_byte(unsigned address, Byte byte)
 {

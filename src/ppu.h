@@ -37,10 +37,13 @@ public:
         static unsigned constexpr palettes_end = 0x4000u;
         static unsigned constexpr palettes_size = palettes_end - palettes_start;
 
-        static bool address_is_valid(unsigned address) noexcept;
+        static bool address_is_accessible(unsigned address) noexcept;
+        bool address_is_writable(unsigned address) const noexcept override;
+        bool address_is_readable(unsigned address) const noexcept override;
 
         void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) const override;
+        Byte read_byte(unsigned address) override;
+        Byte read_byte(unsigned address) const;
 
 private:
         template <class Self>
@@ -103,9 +106,7 @@ private:
         bool complete_ = true;
 };
 
-// Reading a byte from OAMDATA or VRAMDATA causes a side effect.
-// That's why this class doesn't implement the Memory interface.
-class PPU {
+class PPU : public Memory {
 public:
         static unsigned constexpr control_register = 0x2000u;
         static unsigned constexpr mask_register = 0x2001u;
@@ -123,7 +124,7 @@ public:
         static unsigned constexpr background_tiles_per_square =
                 background_square_size / background_tile_size;
 
-        explicit PPU(Memory const& dma_memory) noexcept;
+        explicit PPU(ReadableMemory& dma_memory) noexcept;
 
         PPU(PPU const& other) = delete;
         PPU(PPU&& other) = delete;
@@ -133,6 +134,9 @@ public:
 
         void vblank_started();
         void vblank_finished();
+
+        bool address_is_writable(unsigned address) const noexcept override;
+        bool address_is_readable(unsigned address) const noexcept override;
 
         void write_byte(unsigned address, Byte byte);
         Byte read_byte(unsigned address);
@@ -189,7 +193,7 @@ private:
         Byte vram_data_buffer_ = 0;
         VRAM vram_;
         OAM oam_ {0};
-        Memory const& dma_memory_;
+        ReadableMemory& dma_memory_;
 };
 
 }

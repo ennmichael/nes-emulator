@@ -64,12 +64,6 @@ public:
 std::string format_hex(unsigned value, int width);
 std::string format_address(unsigned address);
 
-template <std::size_t N>
-auto to_byte(std::bitset<N> bits) noexcept
-{
-        return static_cast<Byte>(bits.to_ullong());
-}
-
 Bytes read_bytes(std::string const& path);
 Bytes read_bytes(std::ifstream& ifstream);
 
@@ -77,7 +71,6 @@ template <class T>
 bool bit(T t, unsigned bit_num) noexcept
 {
         static_assert(std::is_unsigned_v<T>);
-
         return AutoBitset<T>(t).test(bit_num);
 }
 

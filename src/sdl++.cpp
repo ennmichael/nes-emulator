@@ -1,6 +1,6 @@
 #include "sdl++.h"
 
-namespace Sdl {
+namespace Emulator::Sdl {
 
 void WindowDeleter::operator()(Window* window) const noexcept
 {
@@ -22,13 +22,13 @@ char const* Error::what() const noexcept
         return SDL_GetError();
 }
 
-Initializer::Initializer()
+Scope::Scope()
 {
         if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
                 throw Error();
 }
 
-Initializer::~Initializer()
+Scope::~Scope()
 {
         SDL_Quit();
 }
@@ -47,17 +47,15 @@ RendererColorGuard::~RendererColorGuard()
 
 UniqueWindow create_window(std::string const& title, int width, int height)
 {
-        auto* window = SDL_CreateWindow(title.c_str(),
-                                        SDL_WINDOWPOS_UNDEFINED,
-                                        SDL_WINDOWPOS_UNDEFINED,
-                                        width,
-                                        height,
-                                        0);
-
+        UniqueWindow window(SDL_CreateWindow(title.c_str(),
+                                             SDL_WINDOWPOS_UNDEFINED,
+                                             SDL_WINDOWPOS_UNDEFINED,
+                                             width,
+                                             height,
+                                             0));
         if (!window)
                 throw Error();
-
-        return UniqueWindow(window);
+        return window;
 }
 
 namespace {
@@ -71,14 +69,14 @@ void set_blend_mode(Renderer& renderer)
 
 UniqueRenderer create_renderer(Window& window, Color color)
 {
-        auto* renderer = SDL_CreateRenderer(&window, -1, 0);
+        UniqueRenderer renderer(SDL_CreateRenderer(&window, -1, 0));
 
         if (!renderer)
                 throw Error();
 
         set_render_color(*renderer, color);
         set_blend_mode(*renderer);
-        return UniqueRenderer(renderer);
+        return renderer;
 }
 
 void set_render_color(Renderer& renderer, Color color)
@@ -138,7 +136,6 @@ Ticks get_ticks() noexcept
 {
         return SDL_GetTicks();
 }
-
 
 OptionalEvent poll_event()
 {

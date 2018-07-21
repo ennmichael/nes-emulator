@@ -83,11 +83,12 @@ public:
 
         explicit NROM(NESFile nes_file);
 
-        static bool address_is_writable(unsigned address) noexcept;
-        static bool address_is_readable(unsigned address) noexcept;
+        bool address_is_writable(unsigned address) const noexcept override;
+        bool address_is_readable(unsigned address) const noexcept override;
 
         void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) const override;
+        Byte read_byte(unsigned address) override;
+        Byte read_byte(unsigned address) const;
 
 private:
         NESFile nes_file_;
