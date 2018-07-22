@@ -64,9 +64,9 @@ unsigned CPU::RAM::translate_address(unsigned address) const noexcept
         return address % real_size;
 }
 
-AccessibleMemory::AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept
-        : cartridge(cartridge)
-        , ppu(ppu)
+CPU::AccessibleMemory::AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept
+        : cartridge_(cartridge)
+        , ppu_(ppu)
 {}
 
 bool CPU::AccessibleMemory::address_is_writable(unsigned address) const noexcept
@@ -99,19 +99,19 @@ void CPU::AccessibleMemory::write_byte(unsigned address, Byte byte)
 
 Byte CPU::AccessibleMemory::read_byte(unsigned address)
 {
-        if (ram.address_is_readable(address))
-                return ram.read_byte(address);
-        if (cartridge.address_is_readable(address))
-                return cartridge.read_byte(address);
-        if (ppu.address_is_readable(address))
-                return ppu.read_byte(address);
+        if (ram_.address_is_readable(address))
+                return ram_.read_byte(address);
+        if (cartridge_.address_is_readable(address))
+                return cartridge_.read_byte(address);
+        if (ppu_.address_is_readable(address))
+                return ppu_.read_byte(address);
         throw InvalidAddress("CPU can't read address "s +
                              Utils::format_address(address));
 }
 
 struct CPU::Impl {
         explicit Impl(UniqueMemory memory)
-                : memory(cartridge, ppu)
+                : memory(std::move(memory))
         {
                 load_interrupt_handler(Interrupt::reset);
         }
@@ -123,23 +123,23 @@ struct CPU::Impl {
 
         Byte stack_top_byte()
         {
-                return memory.ram.read_byte(stack_top_address() + 1);
+                return memory->read_byte(stack_top_address() + 1);
         }
 
         unsigned stack_top_pointer()
         {
-                return memory.ram.read_pointer(stack_top_address() + 1);
+                return memory->read_pointer(stack_top_address() + 1);
         }
 
         void stack_push_byte(Byte byte)
         {
-                memory.ram.write_byte(stack_top_address(), byte);
+                memory->write_byte(stack_top_address(), byte);
                 sp -= 1;
         }
 
         void stack_push_pointer(unsigned pointer)
         {
-                memory.ram.write_pointer(stack_top_address() - 1, pointer);
+                memory->write_pointer(stack_top_address() - 1, pointer);
                 sp -= address_size;
         }
 
@@ -160,7 +160,7 @@ struct CPU::Impl {
         unsigned interrupt_handler(Interrupt interrupt) noexcept
         {
                 unsigned const pointer_address = interrupt_handler_address(interrupt);
-                return memory.read_pointer(pointer_address);
+                return memory->read_pointer(pointer_address);
         }
 
         void load_interrupt_handler(Interrupt interrupt) noexcept
@@ -180,7 +180,7 @@ struct CPU::Impl {
         {
                 return [this, operation, offset]
                 {
-                        auto const base_address = memory.read_byte(pc + 1);
+                        auto const base_address = memory->read_byte(pc + 1);
                         unsigned const address = base_address + offset();
                         execute_on_memory(operation, address);
                         pc += 2;
@@ -211,7 +211,7 @@ struct CPU::Impl {
                 return [this, operation, offset]
                 {
                         unsigned const address =
-                                memory.read_pointer(pc + 1) + offset();
+                                memory->read_pointer(pc + 1) + offset();
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -240,7 +240,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const address = memory.deref_pointer(pc);
+                        unsigned const address = memory->deref_pointer(pc);
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -271,7 +271,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        auto const operand = memory.read_byte(pc + 1);
+                        auto const operand = memory->read_byte(pc + 1);
                         (this->*operation)(operand);
                         pc += 2;
                 };
@@ -283,7 +283,7 @@ struct CPU::Impl {
                 return [this, branch]
                 {
                         if ((this->*branch)()) {
-                                auto const displacement = memory.read_byte(pc + 1);
+                                auto const displacement = memory->read_byte(pc + 1);
                                 pc += TwosComplement::encode(displacement);
                         }
                         pc += 2;
@@ -295,9 +295,9 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const zero_page_address = memory.read_byte(pc + 1);
+                        unsigned const zero_page_address = memory->read_byte(pc + 1);
                         unsigned const pointer =
-                                memory.read_pointer(zero_page_address + x);
+                                memory->read_pointer(zero_page_address + x);
                         execute_on_memory(operation, pointer);
                         pc += 2;
                 };
@@ -308,9 +308,9 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        auto const zero_page_address = memory.read_byte(pc + 1);
+                        auto const zero_page_address = memory->read_byte(pc + 1);
                         unsigned const pointer =
-                                memory.read_pointer(zero_page_address) + y;
+                                memory->read_pointer(zero_page_address) + y;
                         execute_on_memory(operation, pointer);
                         pc += 2;
                 };
@@ -319,21 +319,21 @@ struct CPU::Impl {
         void execute_on_memory(Byte (Impl::*operation)(),
                                unsigned address)
         {
-                memory.write_byte(address, (this->*operation)());
+                memory->write_byte(address, (this->*operation)());
         }
 
         void execute_on_memory(void (Impl::*operation)(Byte operand),
                                unsigned address)
         {
-                auto const operand = memory.read_byte(address);
+                auto const operand = memory->read_byte(address);
                 (this->*operation)(operand);
         }
 
         void execute_on_memory(Byte (Impl::*operation)(Byte operand),
                                unsigned address)
         {
-                auto const operand = memory.read_byte(address);
-                memory.write_byte(address, (this->*operation)(operand));
+                auto const operand = memory->read_byte(address);
+                memory->write_byte(address, (this->*operation)(operand));
         }
 
         void update_zero_flag(int result) noexcept
@@ -520,18 +520,18 @@ struct CPU::Impl {
 
         void absolute_jmp() noexcept
         {
-                pc = memory.read_pointer(pc + 1);
+                pc = memory->read_pointer(pc + 1);
         }
 
         void indirect_jmp() noexcept
         {
-                pc = memory.deref_pointer(pc + 1);
+                pc = memory->deref_pointer(pc + 1);
         }
 
         void absolute_jsr() noexcept
         {
                 stack_push_pointer(pc + 2);
-                pc = memory.read_pointer(pc + 1);
+                pc = memory->read_pointer(pc + 1);
         }
 
         void lda(Byte operand) noexcept
@@ -859,7 +859,7 @@ struct CPU::Impl {
                 }
         }
 
-        AccessibleMemory memory;
+        UniqueMemory memory;
         unsigned pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
@@ -918,7 +918,7 @@ Byte CPU::p() const noexcept
 
 void CPU::execute_instruction()
 {
-        auto const opcode = impl_->memory.read_byte(impl_->pc);
+        auto const opcode = impl_->memory->read_byte(impl_->pc);
         auto const instruction = impl_->translate_opcode(opcode);
         instruction();
 }
@@ -926,8 +926,7 @@ void CPU::execute_instruction()
 void CPU::hardware_interrupt(Interrupt interrupt)
 {
         if (interrupt == Interrupt::reset) {
-                impl_ = std::make_unique<Impl>(*impl_->memory.cartridge,
-                                               *impl_->memory.ppu);
+                impl_ = std::make_unique<Impl>(std::move(impl_->memory));
                 return;
         }
 
@@ -938,6 +937,16 @@ void CPU::hardware_interrupt(Interrupt interrupt)
         impl_->stack_push_byte(impl_->p.to_ulong());
         impl_->p.set(interrupt_disable_flag);
         impl_->load_interrupt_handler(interrupt);
+}
+
+bool CPU::address_is_readable(unsigned address) const noexcept
+{
+        return impl_->memory->address_is_readable(address);
+}
+
+Byte CPU::read_byte(unsigned address)
+{
+        return impl_->memory->read_byte(address);
 }
 
 }

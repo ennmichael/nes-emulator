@@ -39,24 +39,19 @@ public:
         }
 };
 
-void execute_example_program(Emulator::CPU& cpu,
-                             Emulator::Bytes const& program)
+Emulator::CPU execute_example_program(Emulator::Bytes const& program)
 {
-        cpu.pc = program_start;
-        write_program(cpu, program);
-        while (cpu.pc != program_start + program.size())
+        Emulator::CPU cpu(std::make_unique<TestMemory>(program));
+        while (cpu.pc() != program_start + program.size())
                 cpu.execute_instruction();
+        return cpu;
 }
 
 }
 
 TEST_CASE("6502 instructions tests")
 {
-        Emulator::CPU cpu {
-                .memory = std::make_unique<Emulator::CPU::RAM>()
-        };
-
-        WHEN("Some values are loaded into the regisers")
+        SECTION("Some values are loaded into the regisers")
         {
                 /**
                   LDA #$01
@@ -68,25 +63,21 @@ TEST_CASE("6502 instructions tests")
                         0xA9, 0x01, 0xA2, 0x02, 0xA0, 0x03
                 };
                 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x01);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x03);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x0606);
-                        CHECK(cpu.sp == 0xFF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                CHECK(cpu.memory->read_byte(i) == 0x00);
-                        }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x01);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x03);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x0606);
+                CHECK(cpu.sp() == 0xFF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        CHECK(cpu.read_byte(i) == 0x00);
                 }
         }
 
-        WHEN("Some values are loaded and stored")
+        SECTION("Some values are loaded and stored")
         {
                 /**
                  ; Load example values
@@ -132,74 +123,70 @@ TEST_CASE("6502 instructions tests")
                         0x04
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0xDD);
-                        CHECK(cpu.x == 0x05);
-                        CHECK(cpu.y == 0x0A);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x0631);
-                        CHECK(cpu.sp == 0xFF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x06:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x35:
-                                        CHECK(cpu.memory->read_byte(i) == 0x05);
-                                        break;
-                                case 0x3F:
-                                        CHECK(cpu.memory->read_byte(i) == 0x05);
-                                        break;
-                                case 0x45:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0A);
-                                        break;
-                                case 0x4A:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0A);
-                                        break;
-                                case 0x70:
-                                        CHECK(cpu.memory->read_byte(i) == 0x70);
-                                        break;
-                                case 0x71:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x0300:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x0316:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x031B:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x0370:
-                                        CHECK(cpu.memory->read_byte(i) == 0xDD);
-                                        break;
-                                case 0x037A:
-                                        CHECK(cpu.memory->read_byte(i) == 0xDF);
-                                        break;
-                                case 0x0450:
-                                        CHECK(cpu.memory->read_byte(i) == 0x05);
-                                        break;
-                                case 0x0460:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0A);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0xDD);
+                CHECK(cpu.x() == 0x05);
+                CHECK(cpu.y() == 0x0A);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x0631);
+                CHECK(cpu.sp() == 0xFF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x06:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x35:
+                                CHECK(cpu.read_byte(i) == 0x05);
+                                break;
+                        case 0x3F:
+                                CHECK(cpu.read_byte(i) == 0x05);
+                                break;
+                        case 0x45:
+                                CHECK(cpu.read_byte(i) == 0x0A);
+                                break;
+                        case 0x4A:
+                                CHECK(cpu.read_byte(i) == 0x0A);
+                                break;
+                        case 0x70:
+                                CHECK(cpu.read_byte(i) == 0x70);
+                                break;
+                        case 0x71:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x0300:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x0316:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x031B:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x0370:
+                                CHECK(cpu.read_byte(i) == 0xDD);
+                                break;
+                        case 0x037A:
+                                CHECK(cpu.read_byte(i) == 0xDF);
+                                break;
+                        case 0x0450:
+                                CHECK(cpu.read_byte(i) == 0x05);
+                                break;
+                        case 0x0460:
+                                CHECK(cpu.read_byte(i) == 0x0A);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some P and A register values are pushed "
+        SECTION("Some P and A register values are pushed "
              "and pulled from the stack")
         {
                 /**
@@ -216,35 +203,31 @@ TEST_CASE("6502 instructions tests")
                         0xA9, 0x11, 0x48, 0xA9, 0x00, 0x48, 0x08, 0x68, 0x28
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x22);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x0609);
-                        CHECK(cpu.sp == 0xFE);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x11);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x22);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x0609);
+                CHECK(cpu.sp() == 0xFE);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x11);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are added to the accumulator")
+        SECTION("Some values are added to the accumulator")
         {
                 /**
                  ; Don't set the carry flag
@@ -340,98 +323,94 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x69, 0x01, 0x48, 0x08, 0x69, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0xA3);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x0657);
-                        CHECK(cpu.sp == 0xE9);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x04:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x01EA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01EB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01EC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01ED:
-                                        CHECK(cpu.memory->read_byte(i) == 0x9F);
-                                        break;
-                                case 0x01EE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01F0:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F1:
-                                        CHECK(cpu.memory->read_byte(i) == 0x51);
-                                        break;
-                                case 0x01F2:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F3:
-                                        CHECK(cpu.memory->read_byte(i) == 0x51);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0x51);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0x31);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0x11);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0F);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0D);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0B);
-                                        break;
-                                case 0x0200:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0xA3);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x0657);
+                CHECK(cpu.sp() == 0xE9);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x04:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x01EA:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01EB:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01EC:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01ED:
+                                CHECK(cpu.read_byte(i) == 0x9F);
+                                break;
+                        case 0x01EE:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01F0:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F1:
+                                CHECK(cpu.read_byte(i) == 0x51);
+                                break;
+                        case 0x01F2:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F3:
+                                CHECK(cpu.read_byte(i) == 0x51);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0x51);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0x31);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0x11);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x0F);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x0D);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x0B);
+                                break;
+                        case 0x0200:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are subtracted from the accumulator")
+        SECTION("Some values are subtracted from the accumulator")
         {
                 /**
                  LDA #$02
@@ -528,101 +507,97 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x48, 0xE9, 0x01, 0x08, 0x48, 0xE9, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x5B);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x21);
-                        CHECK(cpu.pc == 0x0658);
-                        CHECK(cpu.sp == 0xE9);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x04:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x01EA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x5D);
-                                        break;
-                                case 0x01EB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01EC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x5E);
-                                        break;
-                                case 0x01ED:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01EE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFE);
-                                        break;
-                                case 0x01EF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01F0:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F1:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F2:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F3:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFE);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF8);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFA);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFC);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA1);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFF);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x0200:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x5B);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x21);
+                CHECK(cpu.pc() == 0x0658);
+                CHECK(cpu.sp() == 0xE9);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x04:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x01EA:
+                                CHECK(cpu.read_byte(i) == 0x5D);
+                                break;
+                        case 0x01EB:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01EC:
+                                CHECK(cpu.read_byte(i) == 0x5E);
+                                break;
+                        case 0x01ED:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01EE:
+                                CHECK(cpu.read_byte(i) == 0xFE);
+                                break;
+                        case 0x01EF:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01F0:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F1:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F2:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F3:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0xFE);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xF8);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0xFA);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xFC);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0xA1);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0xFF);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x0200:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are AND'ed")
+        SECTION("Some values are AND'ed")
         {
                 /**
                  LDA #$22
@@ -684,86 +659,82 @@ TEST_CASE("6502 instructions tests")
                         0x31, 0x41, 0x08, 0x48
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x02);
-                        CHECK(cpu.x == 0x30);
-                        CHECK(cpu.y == 0x02);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x063C);
-                        CHECK(cpu.sp == 0xEF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x41:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F0:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x01F1:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F2:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x01F3:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x30);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x0300:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x02);
+                CHECK(cpu.x() == 0x30);
+                CHECK(cpu.y() == 0x02);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x063C);
+                CHECK(cpu.sp() == 0xEF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x41:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F0:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x01F1:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F2:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x01F3:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x30);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x0300:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
         
-        WHEN("Some memory is DEC'ed")
+        SECTION("Some memory is DEC'ed")
         {
                 /**
                  LDA #$42
@@ -794,59 +765,55 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xDE, 0xFD, 0x03, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x42);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x061D);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFF);
-                                        break;
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x40);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x03FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFF);
-                                        break;
-                                case 0x0400:
-                                        CHECK(cpu.memory->read_byte(i) == 0x41);
-                                        break;
-                                case 0x0401:
-                                        CHECK(cpu.memory->read_byte(i) == 0x42);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x42);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x061D);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0xFF);
+                                break;
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x40);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x03FF:
+                                CHECK(cpu.read_byte(i) == 0xFF);
+                                break;
+                        case 0x0400:
+                                CHECK(cpu.read_byte(i) == 0x41);
+                                break;
+                        case 0x0401:
+                                CHECK(cpu.read_byte(i) == 0x42);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some memory is INC'ed")
+        SECTION("Some memory is INC'ed")
         {
                 /**
                  LDA #$42
@@ -877,59 +844,55 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xFE, 0xFD, 0x03, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x42);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x061D);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x44);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x03FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x0400:
-                                        CHECK(cpu.memory->read_byte(i) == 0x43);
-                                        break;
-                                case 0x0401:
-                                        CHECK(cpu.memory->read_byte(i) == 0x42);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x42);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x061D);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x44);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x03FF:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x0400:
+                                CHECK(cpu.read_byte(i) == 0x43);
+                                break;
+                        case 0x0401:
+                                CHECK(cpu.read_byte(i) == 0x42);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
        
-        WHEN("The stack pointer is manipulated")
+        SECTION("The stack pointer is manipulated")
         {
                 /**
                  LDA #$22
@@ -950,44 +913,40 @@ TEST_CASE("6502 instructions tests")
                         0x42, 0x9A, 0x08, 0x48
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x22);
-                        CHECK(cpu.x == 0x42);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x060C);
-                        CHECK(cpu.sp == 0x40);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFE);
-                                        break;
-                                case 0x0141:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x0142:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x22);
+                CHECK(cpu.x() == 0x42);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x060C);
+                CHECK(cpu.sp() == 0x40);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0xFE);
+                                break;
+                        case 0x0141:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x0142:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("A and some memory is ASL'ed")
+        SECTION("A and some memory is ASL'ed")
         {
                 /**
                  LDA #$22
@@ -1017,50 +976,46 @@ TEST_CASE("6502 instructions tests")
                         0x1E, 0x00, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x2C);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x061B);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x25:
-                                        CHECK(cpu.memory->read_byte(i) == 0x88);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x2C);
-                                        break;
-                                case 0x0202:
-                                        CHECK(cpu.memory->read_byte(i) == 0x88);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x2C);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x061B);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x25:
+                                CHECK(cpu.read_byte(i) == 0x88);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x2C);
+                                break;
+                        case 0x0202:
+                                CHECK(cpu.read_byte(i) == 0x88);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("BIT is applied to some values")
+        SECTION("BIT is applied to some values")
         {
                 /**
                  LDX #$22
@@ -1115,77 +1070,73 @@ TEST_CASE("6502 instructions tests")
                         0x01, 0x08, 0x2C, 0x01, 0x02, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0xA3);
-                        CHECK(cpu.x == 0x8F);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x063E);
-                        CHECK(cpu.sp == 0xF3);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x01:
-                                        CHECK(cpu.memory->read_byte(i) == 0x8F);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA2);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA2);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x0200:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x0201:
-                                        CHECK(cpu.memory->read_byte(i) == 0x8F);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0xA3);
+                CHECK(cpu.x() == 0x8F);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x063E);
+                CHECK(cpu.sp() == 0xF3);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x01:
+                                CHECK(cpu.read_byte(i) == 0x8F);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xA2);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xA2);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x0200:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x0201:
+                                CHECK(cpu.read_byte(i) == 0x8F);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are EOR'ed")
+        SECTION("Some values are EOR'ed")
         {
                 /**
                  LDA #$22
@@ -1248,86 +1199,82 @@ TEST_CASE("6502 instructions tests")
                         0x51, 0x41, 0x08, 0x48
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x03);
-                        CHECK(cpu.x == 0x30);
-                        CHECK(cpu.y == 0x02);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x063C);
-                        CHECK(cpu.sp == 0xEF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x41:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F0:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F1:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F2:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F3:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0xC3);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xC3);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xC3);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x0300:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x03);
+                CHECK(cpu.x() == 0x30);
+                CHECK(cpu.y() == 0x02);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x063C);
+                CHECK(cpu.sp() == 0xEF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x41:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F0:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F1:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F2:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F3:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0xC3);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0xC3);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0xC3);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x0300:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some flags are set and cleared")
+        SECTION("Some flags are set and cleared")
         {
                 /**
                  SEC
@@ -1362,56 +1309,52 @@ TEST_CASE("6502 instructions tests")
                         0x7F, 0x69, 0x01, 0x08, 0xB8, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x80);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x0616);
-                        CHECK(cpu.sp == 0xF6);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE0);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x24);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x25);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x24);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x80);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x0616);
+                CHECK(cpu.sp() == 0xF6);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xE0);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x24);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x25);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x24);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("A and some memory is LSR'ed")
+        SECTION("A and some memory is LSR'ed")
         {
                 /**
                  LDA #$22
@@ -1441,50 +1384,46 @@ TEST_CASE("6502 instructions tests")
                         0x5E, 0x00, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x4B);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x21);
-                        CHECK(cpu.pc == 0x061B);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x25:
-                                        CHECK(cpu.memory->read_byte(i) == 0x08);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x4B);
-                                        break;
-                                case 0x0202:
-                                        CHECK(cpu.memory->read_byte(i) == 0x08);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x4B);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x21);
+                CHECK(cpu.pc() == 0x061B);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x25:
+                                CHECK(cpu.read_byte(i) == 0x08);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x4B);
+                                break;
+                        case 0x0202:
+                                CHECK(cpu.read_byte(i) == 0x08);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are ORA'd")
+        SECTION("Some values are ORA'd")
         {
                 /**
                  LDA #$22
@@ -1546,86 +1485,82 @@ TEST_CASE("6502 instructions tests")
                         0x11, 0x41, 0x08, 0x48
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x23);
-                        CHECK(cpu.x == 0x30);
-                        CHECK(cpu.y == 0x02);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x063C);
-                        CHECK(cpu.sp == 0xEF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x41:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F0:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01F1:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F2:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01F3:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xF3);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x0300:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x23);
+                CHECK(cpu.x() == 0x30);
+                CHECK(cpu.y() == 0x02);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x063C);
+                CHECK(cpu.sp() == 0xEF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x41:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F0:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01F1:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F2:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01F3:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0xF3);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x0300:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Registers are transfered all around")
+        SECTION("Registers are transfered all around")
         {
                 /**
                  LDA #$E2
@@ -1676,59 +1611,55 @@ TEST_CASE("6502 instructions tests")
                         0x48, 0xC8, 0x98, 0x48
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0xE2);
-                        CHECK(cpu.x == 0xE2);
-                        CHECK(cpu.y == 0xE2);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x0624);
-                        CHECK(cpu.sp == 0xF5);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE2);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE0);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE2);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE2);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE0);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE1);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xE2);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0xE2);
+                CHECK(cpu.x() == 0xE2);
+                CHECK(cpu.y() == 0xE2);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x0624);
+                CHECK(cpu.sp() == 0xF5);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0xE2);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xE0);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0xE2);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xE2);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0xE0);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0xE1);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xE2);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("A and some memory is ROL'ed")
+        SECTION("A and some memory is ROL'ed")
         {
                 /**
                  LDA #$22
@@ -1758,50 +1689,46 @@ TEST_CASE("6502 instructions tests")
                         0x3E, 0x00, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x2C);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x061B);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x25:
-                                        CHECK(cpu.memory->read_byte(i) == 0x8A);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x2C);
-                                        break;
-                                case 0x0202:
-                                        CHECK(cpu.memory->read_byte(i) == 0x88);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x2C);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x061B);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x25:
+                                CHECK(cpu.read_byte(i) == 0x8A);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x2C);
+                                break;
+                        case 0x0202:
+                                CHECK(cpu.read_byte(i) == 0x88);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("A and some memory is ROR'ed")
+        SECTION("A and some memory is ROR'ed")
         {
                 /**
                  LDA #$22
@@ -1831,50 +1758,46 @@ TEST_CASE("6502 instructions tests")
                         0x7E, 0x00, 0x02
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x4B);
-                        CHECK(cpu.x == 0x02);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x21);
-                        CHECK(cpu.pc == 0x061B);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x25:
-                                        CHECK(cpu.memory->read_byte(i) == 0x08);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x4B);
-                                        break;
-                                case 0x0202:
-                                        CHECK(cpu.memory->read_byte(i) == 0x48);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x4B);
+                CHECK(cpu.x() == 0x02);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x21);
+                CHECK(cpu.pc() == 0x061B);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x25:
+                                CHECK(cpu.read_byte(i) == 0x08);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x4B);
+                                break;
+                        case 0x0202:
+                                CHECK(cpu.read_byte(i) == 0x48);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Values are CMP'ed")
+        SECTION("Values are CMP'ed")
         {
                 /**
                  LDA #$22
@@ -1939,74 +1862,70 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0xD1, 0x41, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x03);
-                        CHECK(cpu.x == 0x30);
-                        CHECK(cpu.y == 0x02);
-                        CHECK(cpu.p == 0xA0);
-                        CHECK(cpu.pc == 0x0644);
-                        CHECK(cpu.sp == 0xF3);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x05:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                case 0x41:
-                                        CHECK(cpu.memory->read_byte(i) == 0x03);
-                                        break;
-                                case 0x01F4:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F5:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F6:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x0300:
-                                        CHECK(cpu.memory->read_byte(i) == 0x22);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x03);
+                CHECK(cpu.x() == 0x30);
+                CHECK(cpu.y() == 0x02);
+                CHECK(cpu.p() == 0xA0);
+                CHECK(cpu.pc() == 0x0644);
+                CHECK(cpu.sp() == 0xF3);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x05:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        case 0x41:
+                                CHECK(cpu.read_byte(i) == 0x03);
+                                break;
+                        case 0x01F4:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F5:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F6:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x0300:
+                                CHECK(cpu.read_byte(i) == 0x22);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are CPX'ed")
+        SECTION("Some values are CPX'ed")
         {
                 /**
                  LDX #$10
@@ -2055,68 +1974,64 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x00);
-                        CHECK(cpu.x == 0x10);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x21);
-                        CHECK(cpu.pc == 0x063B);
-                        CHECK(cpu.sp == 0xF6);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x10);
-                                        break;
-                                case 0x01:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x0200:
-                                        CHECK(cpu.memory->read_byte(i) == 0x10);
-                                        break;
-                                case 0x0201:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x00);
+                CHECK(cpu.x() == 0x10);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x21);
+                CHECK(cpu.pc() == 0x063B);
+                CHECK(cpu.sp() == 0xF6);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x10);
+                                break;
+                        case 0x01:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x0200:
+                                CHECK(cpu.read_byte(i) == 0x10);
+                                break;
+                        case 0x0201:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some values are CPY'ed")
+        SECTION("Some values are CPY'ed")
         {
                 /**
                  LDY #$10
@@ -2165,68 +2080,64 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x00);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x10);
-                        CHECK(cpu.p == 0x21);
-                        CHECK(cpu.pc == 0x063B);
-                        CHECK(cpu.sp == 0xF6);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x10);
-                                        break;
-                                case 0x01:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01F7:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01F8:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01F9:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FA:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x21);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0x23);
-                                        break;
-                                case 0x0200:
-                                        CHECK(cpu.memory->read_byte(i) == 0x10);
-                                        break;
-                                case 0x0201:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x00);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x10);
+                CHECK(cpu.p() == 0x21);
+                CHECK(cpu.pc() == 0x063B);
+                CHECK(cpu.sp() == 0xF6);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x10);
+                                break;
+                        case 0x01:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01F7:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01F8:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01F9:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FA:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x21);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0x23);
+                                break;
+                        case 0x0200:
+                                CHECK(cpu.read_byte(i) == 0x10);
+                                break;
+                        case 0x0201:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("JMP is used")
+        SECTION("JMP is used")
         {
                 /**
                  JMP label
@@ -2239,29 +2150,25 @@ TEST_CASE("6502 instructions tests")
                         0x4C, 0x05, 0x06, 0xA9, 0x01, 0xA9, 0x00
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x00);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x22);
-                        CHECK(cpu.pc == 0x0607);
-                        CHECK(cpu.sp == 0xFF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x00);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x22);
+                CHECK(cpu.pc() == 0x0607);
+                CHECK(cpu.sp() == 0xFF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("Some branches are selected")
+        SECTION("Some branches are selected")
         {
                 /**
                  ; BPL/BMI testing
@@ -2350,41 +2257,37 @@ TEST_CASE("6502 instructions tests")
                         0xEA
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0x02);
-                        CHECK(cpu.x == 0x0A);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x0651);
-                        CHECK(cpu.sp == 0xFF);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFF);
-                                        break;
-                                case 0x02:
-                                        CHECK(cpu.memory->read_byte(i) == 0xFF);
-                                        break;
-                                case 0x03:
-                                        CHECK(cpu.memory->read_byte(i) == 0x32);
-                                        break;
-                                case 0x04:
-                                        CHECK(cpu.memory->read_byte(i) == 0x0A);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0x02);
+                CHECK(cpu.x() == 0x0A);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x0651);
+                CHECK(cpu.sp() == 0xFF);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0xFF);
+                                break;
+                        case 0x02:
+                                CHECK(cpu.read_byte(i) == 0xFF);
+                                break;
+                        case 0x03:
+                                CHECK(cpu.read_byte(i) == 0x32);
+                                break;
+                        case 0x04:
+                                CHECK(cpu.read_byte(i) == 0x0A);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }
 
-        WHEN("The program jumps to some subroutines")
+        SECTION("The program jumps to some subroutines")
         {
                 /**
                  LDA #$FF
@@ -2416,48 +2319,44 @@ TEST_CASE("6502 instructions tests")
                         0x1A, 0x06, 0xEA
                 };
 
-                execute_example_program(cpu, program);
-
-                THEN("The results are correct")
-                {
-                        CHECK(cpu.a == 0xFF);
-                        CHECK(cpu.x == 0x00);
-                        CHECK(cpu.y == 0x00);
-                        CHECK(cpu.p == 0x20);
-                        CHECK(cpu.pc == 0x061B);
-                        CHECK(cpu.sp == 0xFA);
-                        for (unsigned i = 0;
-                             i < program_start;
-                             ++i) {
-                                switch (i) {
-                                case 0x00:
-                                        CHECK(cpu.memory->read_byte(i) == 0x01);
-                                        break;
-                                case 0x01:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x02:
-                                        CHECK(cpu.memory->read_byte(i) == 0x02);
-                                        break;
-                                case 0x01FB:
-                                        CHECK(cpu.memory->read_byte(i) == 0x19);
-                                        break;
-                                case 0x01FC:
-                                        CHECK(cpu.memory->read_byte(i) == 0x06);
-                                        break;
-                                case 0x01FD:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FE:
-                                        CHECK(cpu.memory->read_byte(i) == 0x20);
-                                        break;
-                                case 0x01FF:
-                                        CHECK(cpu.memory->read_byte(i) == 0xA0);
-                                        break;
-                                default:
-                                        CHECK(cpu.memory->read_byte(i) == 0x00);
-                                        break;
-                                }
+                Emulator::CPU cpu = execute_example_program(program);
+                CHECK(cpu.a() == 0xFF);
+                CHECK(cpu.x() == 0x00);
+                CHECK(cpu.y() == 0x00);
+                CHECK(cpu.p() == 0x20);
+                CHECK(cpu.pc() == 0x061B);
+                CHECK(cpu.sp() == 0xFA);
+                for (unsigned i = 0;
+                     i < program_start;
+                     ++i) {
+                        switch (i) {
+                        case 0x00:
+                                CHECK(cpu.read_byte(i) == 0x01);
+                                break;
+                        case 0x01:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x02:
+                                CHECK(cpu.read_byte(i) == 0x02);
+                                break;
+                        case 0x01FB:
+                                CHECK(cpu.read_byte(i) == 0x19);
+                                break;
+                        case 0x01FC:
+                                CHECK(cpu.read_byte(i) == 0x06);
+                                break;
+                        case 0x01FD:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FE:
+                                CHECK(cpu.read_byte(i) == 0x20);
+                                break;
+                        case 0x01FF:
+                                CHECK(cpu.read_byte(i) == 0xA0);
+                                break;
+                        default:
+                                CHECK(cpu.read_byte(i) == 0x00);
+                                break;
                         }
                 }
         }

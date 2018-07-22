@@ -21,7 +21,7 @@ public:
 
 using Instruction = std::function<void()>;
 
-class CPU {
+class CPU : ReadableMemory {
 public:
         class RAM : public Memory {
         public:
@@ -88,7 +88,7 @@ public:
 
         static unsigned constexpr stack_bottom_address = 0x100u;
 
-        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept
+        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept;
 
         unsigned pc() const noexcept;
         Byte sp() const noexcept;
@@ -98,11 +98,15 @@ public:
         Byte p() const noexcept;
         void execute_instruction();
         void hardware_interrupt(Interrupt interrupt);
+        bool address_is_readable(unsigned address) const noexcept override;
+        Byte read_byte(unsigned address) override;
 
 private:
         struct Impl;
         std::unique_ptr<Impl> impl_;
 };
+
+using UniqueCPU = std::unique_ptr<CPU>;
 
 }
 
