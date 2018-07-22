@@ -36,12 +36,31 @@ public:
 
                 void write_byte(unsigned address, Byte byte) override;
                 Byte read_byte(unsigned address) override;
-                Byte read_byte(unsigned address) const;
 
         private:
                 unsigned translate_address(unsigned address) const noexcept;
 
                 std::array<Byte, real_size> ram_ {0};
+        };
+
+        class AccessibleMemory : public Memory {
+        public:
+                AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept;
+                AccessibleMemory(AccessibleMemory const& other) = delete;
+                AccessibleMemory(AccessibleMemory&& other) = delete;
+                AccessibleMemory& operator=(AccessibleMemory const& other) = delete;
+                AccessibleMemory& operator=(AccessibleMemory&& other) = delete;
+                ~AccessibleMemory() = default;
+
+                bool address_is_writable(unsigned address) const noexcept override;
+                bool address_is_readable(unsigned address) const noexcept override;
+                void write_byte(unsigned address, Byte byte) override;
+                Byte read_byte(unsigned address) override;
+
+        private:
+                RAM ram_;
+                Memory& cartridge_;
+                Memory& ppu_;
         };
 
         enum class Interrupt {
@@ -60,14 +79,16 @@ public:
         static unsigned constexpr overflow_flag = 6u;
         static unsigned constexpr negative_flag = 7u;  
 
-        explicit CPU(Memory& cartridge_memory, Memory& ppu_memory) noexcept;
+        explicit CPU(UniqueMemory memory);
         CPU(CPU const& other) = delete;
         CPU(CPU&& other) = default;
         CPU& operator=(CPU const& other) = delete;
         CPU& operator=(CPU&& other) = default;
         ~CPU();
 
-        unsigned constexpr stack_bottom_address = 0x100u;
+        static unsigned constexpr stack_bottom_address = 0x100u;
+
+        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept
 
         unsigned pc() const noexcept;
         Byte sp() const noexcept;

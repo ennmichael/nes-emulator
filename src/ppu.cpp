@@ -184,7 +184,7 @@ Byte PPU::read_byte(unsigned address)
                         throw_not_readable("mask"s, mask_register);
 
                 case status_register:
-                        return Utils::to_byte(status_);
+                        return status_.to_ulong();
 
                 case oam_address_register:
                         throw_not_readable("OAM address"s, oam_address_register);

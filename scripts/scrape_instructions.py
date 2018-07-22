@@ -69,7 +69,7 @@ if __name__ == '__main__':
     print('switch (opcode) {')
 
     for mnemonic, opcode, mode in instructions:
-        print(f'        case {opcode}: return {mode}({mnemonic});');
+        print(f'        case {opcode}: return {mode}(&Impl::{mnemonic});');
 
     print('        default: throw UnknownOpcode(opcode);')
 

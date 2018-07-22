@@ -35,7 +35,7 @@ Byte NESFile::mmc_id() const noexcept
 {
         ByteBitset const first_half = first_control_byte() >> CHAR_BIT/2;
         ByteBitset const second_half = second_control_byte() << CHAR_BIT/2;
-        return Utils::to_byte(first_half | second_half);
+        return (first_half | second_half).to_ulong();
 }
 
 bool NESFile::has_sram() const noexcept

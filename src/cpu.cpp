@@ -46,12 +46,6 @@ void CPU::RAM::write_byte(unsigned address, Byte byte)
 
 Byte CPU::RAM::read_byte(unsigned address)
 {
-        RAM const& self = *this;
-        return self.read_byte(address);
-}
-
-Byte CPU::RAM::read_byte(unsigned address) const
-{
         if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't read CPU RAM at address "s +
                                      Utils::format_address(address) +
@@ -70,44 +64,54 @@ unsigned CPU::RAM::translate_address(unsigned address) const noexcept
         return address % real_size;
 }
 
+AccessibleMemory::AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept
+        : cartridge(cartridge)
+        , ppu(ppu)
+{}
+
+bool CPU::AccessibleMemory::address_is_writable(unsigned address) const noexcept
+{
+        return ram_.address_is_writable(address) ||
+               cartridge_.address_is_writable(address) ||
+               ppu_.address_is_writable(address);
+}
+
+bool CPU::AccessibleMemory::address_is_readable(unsigned address) const noexcept
+{
+        return ram_.address_is_readable(address) ||
+               cartridge_.address_is_readable(address) ||
+               ppu_.address_is_readable(address);
+}
+
+void CPU::AccessibleMemory::write_byte(unsigned address, Byte byte)
+{
+        if (ram_.address_is_writable(address)) {
+                ram_.write_byte(address, byte);
+        } else if (cartridge_.address_is_writable(address)) {
+                cartridge_.write_byte(address, byte);
+        } else if (ppu_.address_is_writable(address)) {
+                ppu_.write_byte(address, byte);
+        } else {
+                throw InvalidAddress("CPU can't write to address "s +
+                                     Utils::format_address(address));
+        }
+}
+
+Byte CPU::AccessibleMemory::read_byte(unsigned address)
+{
+        if (ram.address_is_readable(address))
+                return ram.read_byte(address);
+        if (cartridge.address_is_readable(address))
+                return cartridge.read_byte(address);
+        if (ppu.address_is_readable(address))
+                return ppu.read_byte(address);
+        throw InvalidAddress("CPU can't read address "s +
+                             Utils::format_address(address));
+}
+
 struct CPU::Impl {
-        struct AccessibleMemory : Memory {
-                void write_byte(unsigned address, Byte byte)
-                {
-                        if (ram.address_is_writable(address)) {
-                                ram.write_byte(address, byte);
-                        } else if (cartridge.address_is_writable(address)) {
-                                cartridge.write_byte(address, byte);
-                        } else if (ppu.address_is_writable(address)) {
-                                ppu.write_byte(address, byte);
-                        } else {
-                                throw InvalidAddress("CPU can't write to address "s +
-                                                     Utils::format_address(address));
-                        }
-                }
-
-                Byte read_byte(unsigned address)
-                {
-                        if (ram.address_is_readable(address))
-                                return ram.read_byte(address);
-                        if (cartridge.address_is_readable(address))
-                                return cartridge.read_byte(address);
-                        if (ppu.address_is_readable(address))
-                                return ppu.read_byte(address);
-                        throw InvalidAddress("CPU can't read address "s +
-                                             Utils::format_address(address));
-                }
-
-                RAM ram;
-                Memory& cartridge;
-                Memory& ppu;
-        };
-
-        explicit Impl(Memory& cartridge, Memory& ppu) noexcept
-                : memory {
-                        .cartridge = cartridge,
-                        .ppu = ppu
-                }
+        explicit Impl(UniqueMemory memory)
+                : memory(cartridge, ppu)
         {
                 load_interrupt_handler(Interrupt::reset);
         }
@@ -117,12 +121,12 @@ struct CPU::Impl {
                 return stack_bottom_address + sp;
         }
 
-        Byte stack_top_byte() const
+        Byte stack_top_byte()
         {
                 return memory.ram.read_byte(stack_top_address() + 1);
         }
 
-        unsigned stack_top_pointer() const
+        unsigned stack_top_pointer()
         {
                 return memory.ram.read_pointer(stack_top_address() + 1);
         }
@@ -139,35 +143,30 @@ struct CPU::Impl {
                 sp -= address_size;
         }
 
-        Byte stack_pull_byte(CPU& cpu)
+        Byte stack_pull_byte()
         {
                 Byte const result = stack_top_byte();
                 sp += 1;
                 return result;
         }
 
-        unsigned CPU::interrupt_handler(Interrupt interrupt) const noexcept
+        unsigned stack_pull_pointer() noexcept
+        {
+                unsigned const result = stack_top_pointer();
+                sp += address_size;
+                return result;
+        }
+
+        unsigned interrupt_handler(Interrupt interrupt) noexcept
         {
                 unsigned const pointer_address = interrupt_handler_address(interrupt);
-                return memory->read_pointer(pointer_address);
+                return memory.read_pointer(pointer_address);
         }
 
-        void CPU::load_interrupt_handler(Interrupt interrupt) noexcept
+        void load_interrupt_handler(Interrupt interrupt) noexcept
         {
                 pc = interrupt_handler(interrupt);
-        }
-
-        static unsigned interrupt_handler_address(Interrupt interrupt) noexcept
-        {
-                switch (interrupt) {
-                        case Interrupt::nmi:   return 0xFFFA;
-                        case Interrupt::reset: return 0xFFFC;
-                        case Interrupt::irq:   return 0xFFFE;
-                }
-
-                assert(false);
-                return 0; 
-        }
+        } 
 
         template <class Integer>
         void update_transfer_flags(Integer i) noexcept
@@ -181,7 +180,7 @@ struct CPU::Impl {
         {
                 return [this, operation, offset]
                 {
-                        auto const base_address = memory->read_byte(pc + 1);
+                        auto const base_address = memory.read_byte(pc + 1);
                         unsigned const address = base_address + offset();
                         execute_on_memory(operation, address);
                         pc += 2;
@@ -212,7 +211,7 @@ struct CPU::Impl {
                 return [this, operation, offset]
                 {
                         unsigned const address =
-                                memory->read_pointer(pc + 1) + offset();
+                                memory.read_pointer(pc + 1) + offset();
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -241,7 +240,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const address = memory->deref_pointer(pc);
+                        unsigned const address = memory.deref_pointer(pc);
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -252,7 +251,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        operation(*this);
+                        (this->*operation)();
                         pc += 1;
                 };
         }
@@ -262,7 +261,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        a = operation(*this, a);
+                        a = (this->*operation)(a);
                         pc += 1;
                 };
         }
@@ -272,8 +271,8 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        auto const operand = memory->read_byte(pc + 1);
-                        operation(*this, operand);
+                        auto const operand = memory.read_byte(pc + 1);
+                        (this->*operation)(operand);
                         pc += 2;
                 };
         }
@@ -283,8 +282,8 @@ struct CPU::Impl {
         {
                 return [this, branch]
                 {
-                        if (branch(*this)) {
-                                auto const displacement = memory->read_byte(pc + 1);
+                        if ((this->*branch)()) {
+                                auto const displacement = memory.read_byte(pc + 1);
                                 pc += TwosComplement::encode(displacement);
                         }
                         pc += 2;
@@ -296,45 +295,45 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const zero_page_address = memory->read_byte(pc + 1);
+                        unsigned const zero_page_address = memory.read_byte(pc + 1);
                         unsigned const pointer =
-                                memory->read_pointer(zero_page_address + x);
+                                memory.read_pointer(zero_page_address + x);
                         execute_on_memory(operation, pointer);
                         pc += 2;
                 };
         }
 
         template <class Operation>
-        static Instruction indirect_y(Operation operation) // Indirect indexed
+        Instruction indirect_y(Operation operation) // Indirect indexed
         {
                 return [this, operation]
                 {
-                        auto const zero_page_address = memory->read_byte(pc + 1);
+                        auto const zero_page_address = memory.read_byte(pc + 1);
                         unsigned const pointer =
-                                memory->read_pointer(zero_page_address) + y;
+                                memory.read_pointer(zero_page_address) + y;
                         execute_on_memory(operation, pointer);
                         pc += 2;
                 };
         }
 
-        void execute_on_memory(std::function<Byte(Impl& impl)> operation,
+        void execute_on_memory(Byte (Impl::*operation)(),
                                unsigned address)
         {
-                memory->write_byte(address, operation(*this));
+                memory.write_byte(address, (this->*operation)());
         }
 
-        void execute_on_memory(std::function<void(Impl& impl, Byte operand)> opertion,
+        void execute_on_memory(void (Impl::*operation)(Byte operand),
                                unsigned address)
         {
-                auto const operand = memory->read_byte(address);
-                operation(*this, operand);
+                auto const operand = memory.read_byte(address);
+                (this->*operation)(operand);
         }
 
-        void execute_on_memory(std::function<Byte(Impl& impl, Byte operand)> operation,
+        void execute_on_memory(Byte (Impl::*operation)(Byte operand),
                                unsigned address)
         {
-                auto const operand = memory->read_byte(address);
-                memory->write_byte(address, operation(*this, operand));
+                auto const operand = memory.read_byte(address);
+                memory.write_byte(address, (this->*operation)(operand));
         }
 
         void update_zero_flag(int result) noexcept
@@ -521,18 +520,18 @@ struct CPU::Impl {
 
         void absolute_jmp() noexcept
         {
-                pc = memory->read_pointer(pc + 1);
+                pc = memory.read_pointer(pc + 1);
         }
 
         void indirect_jmp() noexcept
         {
-                pc = memory->deref_pointer(pc + 1);
+                pc = memory.deref_pointer(pc + 1);
         }
 
-        void jsr() noexcept
+        void absolute_jsr() noexcept
         {
                 stack_push_pointer(pc + 2);
-                pc = memory->read_pointer(pc + 1);
+                pc = memory.read_pointer(pc + 1);
         }
 
         void lda(Byte operand) noexcept
@@ -553,17 +552,15 @@ struct CPU::Impl {
         Byte lsr(Byte operand) noexcept
         {
                 Byte const result = operand >> 1;
-
                 p.set(carry_flag, Utils::bit(operand, 0));
                 update_transfer_flags(result);
-
                 return result;
         }
 
         void nop() noexcept
-        {
+        {}
 
-        void ora(CPU& cpu, Byte operand) noexcept
+        void ora(Byte operand) noexcept
         {
                 transfer(a, a | operand);
         }
@@ -575,7 +572,7 @@ struct CPU::Impl {
 
         void php() noexcept
         {
-                stack_push_byte(Utils::to_byte(p));
+                stack_push_byte(p.to_ulong());
         }
 
         void pla() noexcept
@@ -598,7 +595,7 @@ struct CPU::Impl {
                         return bits.to_ulong();
                 }();
 
-                status(carry_flag, Utils::bit(operand, sign_bit));
+                p.set(carry_flag, Utils::bit(operand, sign_bit));
                 update_transfer_flags(result);
                 return result;
         }
@@ -617,16 +614,16 @@ struct CPU::Impl {
                 return result;
         }
 
-        void brk() noexcept
+        void implied_brk() noexcept
         {
                 if (p.test(interrupt_disable_flag))
                         return;
 
                 stack_push_pointer(pc + 2);
-                cpu.set(break_flag);
+                p.set(break_flag);
                 stack_push_byte(p.to_ulong());
-                cpu.set(break_flag, false);
-                cpu.set(interrupt_disable_flag);
+                p.set(break_flag, false);
+                p.set(interrupt_disable_flag);
                 load_interrupt_handler(Interrupt::irq);
         }
 
@@ -637,7 +634,7 @@ struct CPU::Impl {
                 pc = stack_pull_pointer();
         }
 
-        void rts() noexcept
+        void implied_rts() noexcept
         {
                 pc = stack_pull_pointer() + 1;
         }
@@ -699,161 +696,170 @@ struct CPU::Impl {
 
         Instruction translate_opcode(Byte opcode)
         {
+                auto const mem_f = [&](auto const& f)
+                {
+                        return [this, f](auto&&... params)
+                        {
+                                return (this->*f)(
+                                        std::forward<decltype(params)>(params)...);
+                        };
+                };
+
                 switch (opcode) {
-                        case 0x00: return brk;
-                        case 0x01: return indirect_x(ora);
-                        case 0x05: return zero_page(ora);
-                        case 0x06: return zero_page(asl);
-                        case 0x08: return implied(php);
-                        case 0x09: return immediate(ora);
-                        case 0x0A: return accumulator(asl);
-                        case 0x0D: return absolute(ora);
-                        case 0x0E: return absolute(asl);
-                        case 0x10: return relative(bpl);
-                        case 0x11: return indirect_y(ora);
-                        case 0x15: return zero_page_x(ora);
-                        case 0x16: return zero_page_x(asl);
-                        case 0x18: return implied(clc);
-                        case 0x19: return absolute_y(ora);
-                        case 0x1D: return absolute_x(ora);
-                        case 0x1E: return absolute_x(asl);
-                        case 0x20: return jsr;
-                        case 0x21: return indirect_x(bitwise_and);
-                        case 0x24: return zero_page(bit);
-                        case 0x25: return zero_page(bitwise_and);
-                        case 0x26: return zero_page(rol);
-                        case 0x28: return implied(plp);
-                        case 0x29: return immediate(bitwise_and);
-                        case 0x2A: return accumulator(rol);
-                        case 0x2C: return absolute(bit);
-                        case 0x2D: return absolute(bitwise_and);
-                        case 0x2E: return absolute(rol);
-                        case 0x30: return relative(bmi);
-                        case 0x31: return indirect_y(bitwise_and);
-                        case 0x35: return zero_page_x(bitwise_and);
-                        case 0x36: return zero_page_x(rol);
-                        case 0x38: return implied(sec);
-                        case 0x39: return absolute_y(bitwise_and);
-                        case 0x3D: return absolute_x(bitwise_and);
-                        case 0x3E: return absolute_x(rol);
-                        case 0x40: return implied(rti);
-                        case 0x41: return indirect_x(eor);
-                        case 0x45: return zero_page(eor);
-                        case 0x46: return zero_page(lsr);
-                        case 0x48: return implied(pha);
-                        case 0x49: return immediate(eor);
-                        case 0x4A: return accumulator(lsr);
-                        case 0x4C: return absolute_jmp;
-                        case 0x4D: return absolute(eor);
-                        case 0x4E: return absolute(lsr);
-                        case 0x50: return relative(bvc);
-                        case 0x51: return indirect_y(eor);
-                        case 0x55: return zero_page_x(eor);
-                        case 0x56: return zero_page_x(lsr);
-                        case 0x58: return implied(cli);
-                        case 0x59: return absolute_y(eor);
-                        case 0x5D: return absolute_x(eor);
-                        case 0x5E: return absolute_x(lsr);
-                        case 0x60: return rts;
-                        case 0x61: return indirect_x(adc);
-                        case 0x65: return zero_page(adc);
-                        case 0x66: return zero_page(ror);
-                        case 0x68: return implied(pla);
-                        case 0x69: return immediate(adc);
-                        case 0x6A: return accumulator(ror);
-                        case 0x6C: return indirect_jmp;
-                        case 0x6D: return absolute(adc);
-                        case 0x6E: return absolute(ror);
-                        case 0x70: return relative(bvs);
-                        case 0x71: return indirect_y(adc);
-                        case 0x75: return zero_page_x(adc);
-                        case 0x76: return zero_page_x(ror);
-                        case 0x78: return implied(sei);
-                        case 0x79: return absolute_y(adc);
-                        case 0x7D: return absolute_x(adc);
-                        case 0x7E: return absolute_x(ror);
-                        case 0x81: return indirect_x(sta);
-                        case 0x84: return zero_page(sty);
-                        case 0x85: return zero_page(sta);
-                        case 0x86: return zero_page(stx);
-                        case 0x88: return implied(dey);
-                        case 0x8A: return implied(txa);
-                        case 0x8C: return absolute(sty);
-                        case 0x8D: return absolute(sta);
-                        case 0x8E: return absolute(stx);
-                        case 0x90: return relative(bcc);
-                        case 0x91: return indirect_y(sta);
-                        case 0x94: return zero_page_x(sty);
-                        case 0x95: return zero_page_x(sta);
-                        case 0x96: return zero_page_y(stx);
-                        case 0x98: return implied(tya);
-                        case 0x99: return absolute_y(sta);
-                        case 0x9A: return implied(txs);
-                        case 0x9D: return absolute_x(sta);
-                        case 0xA0: return immediate(ldy);
-                        case 0xA1: return indirect_x(lda);
-                        case 0xA2: return immediate(ldx);
-                        case 0xA4: return zero_page(ldy);
-                        case 0xA5: return zero_page(lda);
-                        case 0xA6: return zero_page(ldx);
-                        case 0xA8: return implied(tay);
-                        case 0xA9: return immediate(lda);
-                        case 0xAA: return implied(tax);
-                        case 0xAC: return absolute(ldy);
-                        case 0xAD: return absolute(lda);
-                        case 0xAE: return absolute(ldx);
-                        case 0xB0: return relative(bcs);
-                        case 0xB1: return indirect_y(lda);
-                        case 0xB4: return zero_page_x(ldy);
-                        case 0xB5: return zero_page_x(lda);
-                        case 0xB6: return zero_page_y(ldx);
-                        case 0xB8: return implied(clv);
-                        case 0xB9: return absolute_y(lda);
-                        case 0xBA: return implied(tsx);
-                        case 0xBC: return absolute_x(ldy);
-                        case 0xBD: return absolute_x(lda);
-                        case 0xBE: return absolute_y(ldx);
-                        case 0xC0: return immediate(cpy);
-                        case 0xC1: return indirect_x(cmp);
-                        case 0xC4: return zero_page(cpy);
-                        case 0xC5: return zero_page(cmp);
-                        case 0xC6: return zero_page(dec);
-                        case 0xC8: return implied(iny);
-                        case 0xC9: return immediate(cmp);
-                        case 0xCA: return implied(dex);
-                        case 0xCC: return absolute(cpy);
-                        case 0xCD: return absolute(cmp);
-                        case 0xCE: return absolute(dec);
-                        case 0xD0: return relative(bne);
-                        case 0xD1: return indirect_y(cmp);
-                        case 0xD5: return zero_page_x(cmp);
-                        case 0xD6: return zero_page_x(dec);
-                        case 0xD9: return absolute_y(cmp);
-                        case 0xDD: return absolute_x(cmp);
-                        case 0xDE: return absolute_x(dec);
-                        case 0xE0: return immediate(cpx);
-                        case 0xE1: return indirect_x(sbc);
-                        case 0xE4: return zero_page(cpx);
-                        case 0xE5: return zero_page(sbc);
-                        case 0xE6: return zero_page(inc);
-                        case 0xE8: return implied(inx);
-                        case 0xE9: return immediate(sbc);
-                        case 0xEA: return implied(nop);
-                        case 0xEC: return absolute(cpx);
-                        case 0xED: return absolute(sbc);
-                        case 0xEE: return absolute(inc);
-                        case 0xF0: return relative(beq);
-                        case 0xF1: return indirect_y(sbc);
-                        case 0xF5: return zero_page_x(sbc);
-                        case 0xF6: return zero_page_x(inc);
-                        case 0xF9: return absolute_y(sbc);
-                        case 0xFD: return absolute_x(sbc);
-                        case 0xFE: return absolute_x(inc);
+                        case 0x00: return mem_f(&Impl::implied_brk);
+                        case 0x01: return indirect_x(&Impl::ora);
+                        case 0x05: return zero_page(&Impl::ora);
+                        case 0x06: return zero_page(&Impl::asl);
+                        case 0x08: return implied(&Impl::php);
+                        case 0x09: return immediate(&Impl::ora);
+                        case 0x0A: return accumulator(&Impl::asl);
+                        case 0x0D: return absolute(&Impl::ora);
+                        case 0x0E: return absolute(&Impl::asl);
+                        case 0x10: return relative(&Impl::bpl);
+                        case 0x11: return indirect_y(&Impl::ora);
+                        case 0x15: return zero_page_x(&Impl::ora);
+                        case 0x16: return zero_page_x(&Impl::asl);
+                        case 0x18: return implied(&Impl::clc);
+                        case 0x19: return absolute_y(&Impl::ora);
+                        case 0x1D: return absolute_x(&Impl::ora);
+                        case 0x1E: return absolute_x(&Impl::asl);
+                        case 0x20: return mem_f(&Impl::absolute_jsr);
+                        case 0x21: return indirect_x(&Impl::bitwise_and);
+                        case 0x24: return zero_page(&Impl::bit);
+                        case 0x25: return zero_page(&Impl::bitwise_and);
+                        case 0x26: return zero_page(&Impl::rol);
+                        case 0x28: return implied(&Impl::plp);
+                        case 0x29: return immediate(&Impl::bitwise_and);
+                        case 0x2A: return accumulator(&Impl::rol);
+                        case 0x2C: return absolute(&Impl::bit);
+                        case 0x2D: return absolute(&Impl::bitwise_and);
+                        case 0x2E: return absolute(&Impl::rol);
+                        case 0x30: return relative(&Impl::bmi);
+                        case 0x31: return indirect_y(&Impl::bitwise_and);
+                        case 0x35: return zero_page_x(&Impl::bitwise_and);
+                        case 0x36: return zero_page_x(&Impl::rol);
+                        case 0x38: return implied(&Impl::sec);
+                        case 0x39: return absolute_y(&Impl::bitwise_and);
+                        case 0x3D: return absolute_x(&Impl::bitwise_and);
+                        case 0x3E: return absolute_x(&Impl::rol);
+                        case 0x40: return implied(&Impl::rti);
+                        case 0x41: return indirect_x(&Impl::eor);
+                        case 0x45: return zero_page(&Impl::eor);
+                        case 0x46: return zero_page(&Impl::lsr);
+                        case 0x48: return implied(&Impl::pha);
+                        case 0x49: return immediate(&Impl::eor);
+                        case 0x4A: return accumulator(&Impl::lsr);
+                        case 0x4C: return mem_f(&Impl::absolute_jmp);
+                        case 0x4D: return absolute(&Impl::eor);
+                        case 0x4E: return absolute(&Impl::lsr);
+                        case 0x50: return relative(&Impl::bvc);
+                        case 0x51: return indirect_y(&Impl::eor);
+                        case 0x55: return zero_page_x(&Impl::eor);
+                        case 0x56: return zero_page_x(&Impl::lsr);
+                        case 0x58: return implied(&Impl::cli);
+                        case 0x59: return absolute_y(&Impl::eor);
+                        case 0x5D: return absolute_x(&Impl::eor);
+                        case 0x5E: return absolute_x(&Impl::lsr);
+                        case 0x60: return mem_f(&Impl::implied_rts);
+                        case 0x61: return indirect_x(&Impl::adc);
+                        case 0x65: return zero_page(&Impl::adc);
+                        case 0x66: return zero_page(&Impl::ror);
+                        case 0x68: return implied(&Impl::pla);
+                        case 0x69: return immediate(&Impl::adc);
+                        case 0x6A: return accumulator(&Impl::ror);
+                        case 0x6C: return mem_f(&Impl::indirect_jmp);
+                        case 0x6D: return absolute(&Impl::adc);
+                        case 0x6E: return absolute(&Impl::ror);
+                        case 0x70: return relative(&Impl::bvs);
+                        case 0x71: return indirect_y(&Impl::adc);
+                        case 0x75: return zero_page_x(&Impl::adc);
+                        case 0x76: return zero_page_x(&Impl::ror);
+                        case 0x78: return implied(&Impl::sei);
+                        case 0x79: return absolute_y(&Impl::adc);
+                        case 0x7D: return absolute_x(&Impl::adc);
+                        case 0x7E: return absolute_x(&Impl::ror);
+                        case 0x81: return indirect_x(&Impl::sta);
+                        case 0x84: return zero_page(&Impl::sty);
+                        case 0x85: return zero_page(&Impl::sta);
+                        case 0x86: return zero_page(&Impl::stx);
+                        case 0x88: return implied(&Impl::dey);
+                        case 0x8A: return implied(&Impl::txa);
+                        case 0x8C: return absolute(&Impl::sty);
+                        case 0x8D: return absolute(&Impl::sta);
+                        case 0x8E: return absolute(&Impl::stx);
+                        case 0x90: return relative(&Impl::bcc);
+                        case 0x91: return indirect_y(&Impl::sta);
+                        case 0x94: return zero_page_x(&Impl::sty);
+                        case 0x95: return zero_page_x(&Impl::sta);
+                        case 0x96: return zero_page_y(&Impl::stx);
+                        case 0x98: return implied(&Impl::tya);
+                        case 0x99: return absolute_y(&Impl::sta);
+                        case 0x9A: return implied(&Impl::txs);
+                        case 0x9D: return absolute_x(&Impl::sta);
+                        case 0xA0: return immediate(&Impl::ldy);
+                        case 0xA1: return indirect_x(&Impl::lda);
+                        case 0xA2: return immediate(&Impl::ldx);
+                        case 0xA4: return zero_page(&Impl::ldy);
+                        case 0xA5: return zero_page(&Impl::lda);
+                        case 0xA6: return zero_page(&Impl::ldx);
+                        case 0xA8: return implied(&Impl::tay);
+                        case 0xA9: return immediate(&Impl::lda);
+                        case 0xAA: return implied(&Impl::tax);
+                        case 0xAC: return absolute(&Impl::ldy);
+                        case 0xAD: return absolute(&Impl::lda);
+                        case 0xAE: return absolute(&Impl::ldx);
+                        case 0xB0: return relative(&Impl::bcs);
+                        case 0xB1: return indirect_y(&Impl::lda);
+                        case 0xB4: return zero_page_x(&Impl::ldy);
+                        case 0xB5: return zero_page_x(&Impl::lda);
+                        case 0xB6: return zero_page_y(&Impl::ldx);
+                        case 0xB8: return implied(&Impl::clv);
+                        case 0xB9: return absolute_y(&Impl::lda);
+                        case 0xBA: return implied(&Impl::tsx);
+                        case 0xBC: return absolute_x(&Impl::ldy);
+                        case 0xBD: return absolute_x(&Impl::lda);
+                        case 0xBE: return absolute_y(&Impl::ldx);
+                        case 0xC0: return immediate(&Impl::cpy);
+                        case 0xC1: return indirect_x(&Impl::cmp);
+                        case 0xC4: return zero_page(&Impl::cpy);
+                        case 0xC5: return zero_page(&Impl::cmp);
+                        case 0xC6: return zero_page(&Impl::dec);
+                        case 0xC8: return implied(&Impl::iny);
+                        case 0xC9: return immediate(&Impl::cmp);
+                        case 0xCA: return implied(&Impl::dex);
+                        case 0xCC: return absolute(&Impl::cpy);
+                        case 0xCD: return absolute(&Impl::cmp);
+                        case 0xCE: return absolute(&Impl::dec);
+                        case 0xD0: return relative(&Impl::bne);
+                        case 0xD1: return indirect_y(&Impl::cmp);
+                        case 0xD5: return zero_page_x(&Impl::cmp);
+                        case 0xD6: return zero_page_x(&Impl::dec);
+                        case 0xD9: return absolute_y(&Impl::cmp);
+                        case 0xDD: return absolute_x(&Impl::cmp);
+                        case 0xDE: return absolute_x(&Impl::dec);
+                        case 0xE0: return immediate(&Impl::cpx);
+                        case 0xE1: return indirect_x(&Impl::sbc);
+                        case 0xE4: return zero_page(&Impl::cpx);
+                        case 0xE5: return zero_page(&Impl::sbc);
+                        case 0xE6: return zero_page(&Impl::inc);
+                        case 0xE8: return implied(&Impl::inx);
+                        case 0xE9: return immediate(&Impl::sbc);
+                        case 0xEA: return implied(&Impl::nop);
+                        case 0xEC: return absolute(&Impl::cpx);
+                        case 0xED: return absolute(&Impl::sbc);
+                        case 0xEE: return absolute(&Impl::inc);
+                        case 0xF0: return relative(&Impl::beq);
+                        case 0xF1: return indirect_y(&Impl::sbc);
+                        case 0xF5: return zero_page_x(&Impl::sbc);
+                        case 0xF6: return zero_page_x(&Impl::inc);
+                        case 0xF9: return absolute_y(&Impl::sbc);
+                        case 0xFD: return absolute_x(&Impl::sbc);
+                        case 0xFE: return absolute_x(&Impl::inc);
                         default: throw UnknownOpcode(opcode);
                 }
         }
 
-        UniqueMemory memory;
+        AccessibleMemory memory;
         unsigned pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
@@ -862,11 +868,23 @@ struct CPU::Impl {
         ByteBitset p = 0x20;
 };
 
-CPU::CPU(UniqueMemory memory) noexcept
+CPU::CPU(UniqueMemory memory)
         : impl_(std::make_unique<Impl>(std::move(memory)))
 {}
 
 CPU::~CPU() = default;
+
+unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
+{
+        switch (interrupt) {
+                case Interrupt::nmi:   return 0xFFFA;
+                case Interrupt::reset: return 0xFFFC;
+                case Interrupt::irq:   return 0xFFFE;
+        }
+
+        assert(false);
+        return 0; 
+}
 
 unsigned CPU::pc() const noexcept
 {
@@ -895,31 +913,31 @@ Byte CPU::y() const noexcept
 
 Byte CPU::p() const noexcept
 {
-        return impl_->p;
+        return impl_->p.to_ulong();
 }
 
 void CPU::execute_instruction()
 {
-        auto const opcode = memory->read_byte(pc);
-        auto const instruction = translate_opcode(opcode);
+        auto const opcode = impl_->memory.read_byte(impl_->pc);
+        auto const instruction = impl_->translate_opcode(opcode);
         instruction();
 }
 
 void CPU::hardware_interrupt(Interrupt interrupt)
 {
         if (interrupt == Interrupt::reset) {
-                impl_ = std::make_unique<Impl>(impl_->memory.cartridge,
-                                               impl_->memory.ppu);
+                impl_ = std::make_unique<Impl>(*impl_->memory.cartridge,
+                                               *impl_->memory.ppu);
                 return;
         }
 
-        if (interrupt == Interrupt::irq && p.test(interrupt_disable_flag))
+        if (interrupt == Interrupt::irq && impl_->p.test(interrupt_disable_flag))
                 return;
 
-        impl_->stack_push_pointer(pc);
-        impl_->stack_push_byte(p.to_ulong());
-        p.set(interrupt_disable_flag);
-        load_interrupt_handler(interrupt);
+        impl_->stack_push_pointer(impl_->pc);
+        impl_->stack_push_byte(impl_->p.to_ulong());
+        impl_->p.set(interrupt_disable_flag);
+        impl_->load_interrupt_handler(interrupt);
 }
 
 }
