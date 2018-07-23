@@ -61,13 +61,6 @@ public:
         char const* what() const noexcept override;
 };
 
-enum class Endianness {
-        big = SDL_BIG_ENDIAN,
-        little = SDL_LIL_ENDIAN
-};
-
-Endianness constexpr endianness {SDL_BYTEORDER}; 
-
 class Scope {
 public:
         Scope();

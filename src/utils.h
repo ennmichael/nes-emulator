@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sdl++.h"
 #include <climits>
+#include <cstdint>
 #include <limits>
 #include <bitset>
 #include <string>
@@ -12,7 +12,13 @@
 
 namespace Emulator {
 
-static_assert(CHAR_BIT == 8, "Byte not 8 bits.");
+enum class Endianness {
+        big = SDL_BIG_ENDIAN,
+        little = SDL_LIL_ENDIAN
+};
+
+Endianness constexpr endianness {SDL_BYTEORDER}; 
+
 static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 
 /**
@@ -23,18 +29,18 @@ static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
 /**
  * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
- * Utils::split_pointer and Utils::create_pointer. The changes should
+ * Utils::split_byte and Utils::combine_bytes. The changes should
  * be fairly easy.
  */
 
 template <class T>
 using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
-
-using SignedByte = signed char;
-using Byte = unsigned char;
-using Bytes = std::vector<Byte>; // TODO Rename -> ByteVector
-// TODO Have ByteArray
-
+using SignedByte = std::int8_t;
+using Byte = std::uint8_t;
+using Address = std::uint16_t;
+using ByteVector = std::vector<Byte>;
+template <std::size_t N>
+using ByteArray = std::array<Byte, N>;
 using ByteBitset = std::bitset<CHAR_BIT>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
@@ -49,6 +55,37 @@ int encode(Byte value) noexcept;
 Byte decode(int value) noexcept;
 
 }
+
+class InvalidAddress : public std::runtime_error {
+public:
+        using runtime_error::runtime_error;
+};
+
+class ReadableMemory {
+public:
+        ReadableMemory() = default;
+        ReadableMemory(ReadableMemory const&) = delete;
+        ReadableMemory(ReadableMemory&&) = delete;
+        ReadableMemory& operator=(ReadableMemory const&) = delete;
+        ReadableMemory& operator=(ReadableMemory&&) = delete;
+        virtual ~ReadableMemory() = default;
+
+        virtual bool address_is_readable(unsigned address) const noexcept = 0;
+        virtual Byte read_byte(unsigned address) = 0;
+        unsigned read_pointer(unsigned address);
+        unsigned deref_pointer(unsigned address);
+        Byte deref_byte(unsigned address);
+};
+
+class Memory : public ReadableMemory {
+public:
+        virtual bool address_is_writable(unsigned address) const noexcept = 0;
+        virtual void write_byte(unsigned address, Byte byte) = 0;
+        void write_pointer(unsigned address, unsigned pointer);
+};
+
+using UniqueReadableMemory = std::unique_ptr<ReadableMemory>;
+using UniqueMemory = std::unique_ptr<Memory>;
 
 namespace Utils {
 
@@ -95,21 +132,6 @@ struct BytePair {
 BytePair split_bytes(unsigned two_bytes) noexcept;
 unsigned combine_bytes(Byte low, Byte high) noexcept;
 unsigned combine_bytes(BytePair byte_pair) noexcept;
-
-inline BytePair split_address(unsigned address) noexcept
-{
-        return split_bytes(address);
-}
-
-inline unsigned create_address(Byte low, Byte high) noexcept
-{
-        return combine_bytes(low, high);
-}
-
-inline unsigned create_address(BytePair byte_pair) noexcept
-{
-        return combine_bytes(byte_pair);
-}
 
 }
 

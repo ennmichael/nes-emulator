@@ -8,19 +8,17 @@ TAB = ' ' * 8
 
 
 def fix_tests(source_lines):
-    pull_tabs = False
-    for l in source_lines:
-        if 'WHEN' in l:
-            yield l.replace('WHEN', 'SECTION')
-        elif l.startswith(f'{TAB * 2}{{'):
-            pull_tabs = True
-        elif l.startswith(f'{TAB * 2}}}') and pull_tabs:
-            pull_tabs = False
-        elif l.strip().startswith('execute_example_program'):
-            yield f'{TAB * 2}Emulator::CPU cpu = execute_example_program(program);'
-        elif 'THEN' not in l:
-            l = ()
-            yield l[len(TAB):] if pull_tabs else l
+    return [
+        (l.replace('Emulator::CPU', 'Emulator::UniqueCPU')
+          .replace('cpu.a()', 'cpu->a()')
+          .replace('cpu.x()', 'cpu->x()')
+          .replace('cpu.y()', 'cpu->y()')
+          .replace('cpu.pc() ', 'cpu->pc() ')
+          .replace('cpu.p()', 'cpu->p() ')
+          .replace('cpu.sp()', 'cpu->sp()')
+          .replace('cpu.read_byte', 'cpu->read_byte'))
+        for l in source_lines
+    ]
 
 
 def read_lines():
