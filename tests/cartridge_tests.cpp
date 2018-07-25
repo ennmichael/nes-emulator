@@ -5,7 +5,7 @@
 
 using namespace std::string_literals;
 
-TEST_CASE("NEStress file loading test")
+TEST_CASE("NEStress header test")
 {
         Emulator::NESFile file("../roms/NEStress.nes"s);
 
@@ -18,7 +18,7 @@ TEST_CASE("NEStress file loading test")
         CHECK(file.has_chr_ram() == false);
 }
 
-TEST_CASE("The Legend of Zelda file loading test")
+TEST_CASE("The Legend of Zelda header test")
 {
         Emulator::NESFile file("../roms/The Legend of Zelda.nes"s);
 
@@ -31,7 +31,7 @@ TEST_CASE("The Legend of Zelda file loading test")
         CHECK(file.has_chr_ram() == true);
 }
 
-TEST_CASE("Super Mario Bros. 1 file loading test")
+TEST_CASE("Super Mario Bros. 1 header test")
 {
         Emulator::NESFile file("../roms/Super Mario Bros. 1.nes"s);
 
@@ -44,7 +44,7 @@ TEST_CASE("Super Mario Bros. 1 file loading test")
         CHECK(file.has_chr_ram() == false);
 }
 
-TEST_CASE("Super Mario Bros. 2 file loading test")
+TEST_CASE("Super Mario Bros. 2 header test")
 {
         Emulator::NESFile file("../roms/Super Mario Bros. 2.nes"s);
 
@@ -57,7 +57,7 @@ TEST_CASE("Super Mario Bros. 2 file loading test")
         CHECK(file.has_chr_ram() == false);
 }
 
-TEST_CASE("Super Mario Bros. 3 file loading test") 
+TEST_CASE("Super Mario Bros. 3 header test") 
 {
         Emulator::NESFile file("../roms/Super Mario Bros. 3.nes"s);
 

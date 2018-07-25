@@ -22,7 +22,7 @@ bool VRAM::address_is_readable(unsigned address) const noexcept
 void VRAM::write_byte(unsigned address, Byte byte)
 {
         if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't write to VRAM address"s +
+                throw InvalidAddress("Can't write to VRAM address "s +
                                      Utils::format_address(address));
         }
 
@@ -32,7 +32,7 @@ void VRAM::write_byte(unsigned address, Byte byte)
 Byte VRAM::read_byte(unsigned address) const
 {
         if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't read VRAM address"s +
+                throw InvalidAddress("Can't read VRAM address "s +
                                      Utils::format_address(address));
         }
 
@@ -89,12 +89,12 @@ unsigned DoubleWriteRegister::read_whole() const noexcept
 
 Byte DoubleWriteRegister::read_low_byte() const noexcept
 {
-        return value_ & Utils::low_byte_mask;
+        return Utils::low_byte(value_);
 }
 
 Byte DoubleWriteRegister::read_high_byte() const noexcept
 {
-        return value_ & Utils::high_byte_mask;
+        return Utils::high_byte(value_);
 }
 
 bool DoubleWriteRegister::complete() const noexcept

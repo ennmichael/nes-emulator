@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL2/SDL.h>
+#include "SDL2/SDL.h"
 #include <memory>
 #include <utility>
 #include <string>
@@ -9,36 +9,35 @@
 #include <type_traits>
 #include <vector>
 #include <optional>
+#include <cstdint>
 
 namespace Emulator::Sdl {
 
-using Keycode = SDL_Keycode;
+class Error : public std::exception {
+public:
+        char const* what() const noexcept override;
+};
+
 using Color = SDL_Color;
 using Window = SDL_Window;
 using Renderer = SDL_Renderer;
-using Texture = SDL_Texture;
-using Ticks = Uint32;
 using Rect = SDL_Rect;
-using Rects = std::vector<Rect>;
 using Event = SDL_Event;
 using OptionalEvent = std::optional<Event>;
 
-namespace Colors {
-        Color constexpr white {255, 255, 255, 255};
-        Color constexpr black {0, 0, 0, 255};
-}
+Color constexpr black {.r = 0, .g = 0, .b = 0, .a = 255};
 
-namespace Keycodes {
-        Keycode constexpr e = SDLK_e;
-        Keycode constexpr a = SDLK_a;
-        Keycode constexpr d = SDLK_d;
-        Keycode constexpr w = SDLK_w;
-        Keycode constexpr left = SDLK_LEFT;
-        Keycode constexpr right = SDLK_RIGHT;
-        Keycode constexpr up = SDLK_UP;
-        Keycode constexpr space = SDLK_SPACE;
-        Keycode constexpr left_shift = SDLK_LSHIFT;
-}
+enum class Scancode {
+        left = SDL_SCANCODE_LEFT,
+        right = SDL_SCANCODE_RIGHT,
+        up = SDL_SCANCODE_UP,
+        down = SDL_SCANCODE_DOWN,
+        a = SDL_SCANCODE_A,
+        s = SDL_SCANCODE_S,
+        x = SDL_SCANCODE_X,
+        y = SDL_SCANCODE_Y,
+        z = SDL_SCANCODE_Z
+};
 
 struct WindowDeleter {
         void operator()(Window* window) const noexcept;
@@ -48,27 +47,17 @@ struct RendererDeleter {
         void operator()(Renderer* Renderer) const noexcept;
 };
 
-struct TextureDeleter {
-        void operator()(Texture* texture) const noexcept;
-};
-
 using UniqueWindow   = std::unique_ptr<Window, WindowDeleter>;
 using UniqueRenderer = std::unique_ptr<Renderer, RendererDeleter>;
-using UniqueTexture  = std::unique_ptr<Texture, TextureDeleter>;
 
-class Error : public std::exception {
+class InitGuard {
 public:
-        char const* what() const noexcept override;
-};
-
-class Scope {
-public:
-        Scope();
-        ~Scope();
-        Scope(Scope const&) = delete;
-        Scope(Scope&&) = delete;
-        Scope& operator=(Scope const&) = delete;
-        Scope& operator=(Scope&&) = delete;
+        InitGuard();
+        ~InitGuard();
+        InitGuard(InitGuard const&) = delete;
+        InitGuard(InitGuard&&) = delete;
+        InitGuard& operator=(InitGuard const&) = delete;
+        InitGuard& operator=(InitGuard&&) = delete;
 };
 
 class RendererColorGuard {
@@ -85,9 +74,18 @@ private:
         Color previous_color_;
 };
 
-UniqueWindow create_window(std::string const& title, int width, int height);
-UniqueRenderer create_renderer(Window& window, Color color=Colors::white);
+struct Context {
+        UniqueWindow window;
+        UniqueRenderer renderer;
+};
 
+UniqueWindow create_window(std::string const& title, int width, int height);
+UniqueRenderer create_renderer(Window& window, Color background_color=black);
+Context create_context(std::string const& title,
+                       int width, int height,
+                       Color background_color=black);
+
+bool key_is_down(Scancode scancode) noexcept;
 void set_render_color(Renderer& Renderer, Color color);
 Color get_render_color(Renderer& Renderer);
 void render_clear(Renderer& Renderer);
@@ -101,14 +99,6 @@ enum class Flip {
         horizontal = SDL_FLIP_HORIZONTAL
 };
 
-void render_copy(Renderer& renderer,
-                 Texture& texture,
-                 Rect source,
-                 Rect destination,
-                 Flip flip=Flip::none,
-                 double angle=0.);
-
-Ticks get_ticks() noexcept;
 OptionalEvent poll_event();
 
 }

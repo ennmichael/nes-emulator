@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SDL2/SDL_endian.h"
 #include <climits>
 #include <cstdint>
 #include <limits>
@@ -9,6 +10,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <type_traits>
+#include <array>
+#include <memory>
 
 namespace Emulator {
 
@@ -19,7 +22,7 @@ enum class Endianness {
 
 Endianness constexpr endianness {SDL_BYTEORDER}; 
 
-static_assert(Sdl::endianness == Sdl::Endianness::little, "Not little-endian.");
+static_assert(endianness == Endianness::little, "Not little-endian.");
 
 /**
  * TODO Using unsigned for addresses instead of std::uint_16 is a big mistake.
@@ -37,10 +40,12 @@ template <class T>
 using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
 using SignedByte = std::int8_t;
 using Byte = std::uint8_t;
-using Address = std::uint16_t;
+using Address = std::uint16_t; // TODO Start using this (???)
 using ByteVector = std::vector<Byte>;
 template <std::size_t N>
 using ByteArray = std::array<Byte, N>;
+template <std::size_t W, std::size_t H>
+using ByteMatrix = std::array<ByteArray<W>, H>;
 using ByteBitset = std::bitset<CHAR_BIT>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
@@ -101,8 +106,8 @@ public:
 std::string format_hex(unsigned value, int width);
 std::string format_address(unsigned address);
 
-Bytes read_bytes(std::string const& path);
-Bytes read_bytes(std::ifstream& ifstream);
+ByteVector read_bytes(std::string const& path);
+ByteVector read_bytes(std::ifstream& ifstream);
 
 template <class T>
 bool bit(T t, unsigned bit_num) noexcept
@@ -115,20 +120,18 @@ template <class T>
 T set_bit(T t, unsigned bit_num, bool value=true) noexcept
 {
         static_assert(std::is_unsigned_v<T>);
-
         AutoBitset<T> bits(t);
         bits.set(bit_num, value);
         return bits.to_ullong();
 }
-
-unsigned constexpr low_byte_mask  = 0x00FFu;
-unsigned constexpr high_byte_mask = 0xFF00u;
 
 struct BytePair {
         Byte low;
         Byte high;
 };
 
+Byte low_byte(unsigned two_bytes) noexcept;
+Byte high_byte(unsigned two_bytes) noexcept;
 BytePair split_bytes(unsigned two_bytes) noexcept;
 unsigned combine_bytes(Byte low, Byte high) noexcept;
 unsigned combine_bytes(BytePair byte_pair) noexcept;

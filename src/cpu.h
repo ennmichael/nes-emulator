@@ -1,9 +1,6 @@
 #pragma once
 
 #include "utils.h"
-#include "ppu.h"
-#include "cartridge.h"
-#include "mem.h"
 #include <array>
 #include <utility>
 #include <vector>
@@ -40,27 +37,34 @@ public:
         private:
                 unsigned translate_address(unsigned address) const noexcept;
 
-                std::array<Byte, real_size> ram_ {0};
+                ByteArray<real_size> ram_ {0};
         };
 
         class AccessibleMemory : public Memory {
         public:
-                AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept;
-                AccessibleMemory(AccessibleMemory const& other) = delete;
-                AccessibleMemory(AccessibleMemory&& other) = delete;
-                AccessibleMemory& operator=(AccessibleMemory const& other) = delete;
-                AccessibleMemory& operator=(AccessibleMemory&& other) = delete;
-                ~AccessibleMemory() = default;
+                using Pieces = std::vector<Memory*>;
 
+                AccessibleMemory(Pieces pieces) noexcept;
                 bool address_is_writable(unsigned address) const noexcept override;
                 bool address_is_readable(unsigned address) const noexcept override;
                 void write_byte(unsigned address, Byte byte) override;
                 Byte read_byte(unsigned address) override;
 
         private:
-                RAM ram_;
-                Memory& cartridge_;
-                Memory& ppu_;
+                Memory& find_writable_piece(unsigned address);
+                Memory& find_readable_piece(unsigned address);
+
+                template <class P, class E>
+                Memory& find_piece(P const& p, E const& e)
+                {
+                        auto const i = std::find_if(pieces_.cbegin(),
+                                                    pieces_.cend(), p);
+                        if (i == pieces_.cend())
+                                throw InvalidAddress(e());
+                        return *i;
+                }
+
+                Pieces pieces_;
         };
 
         enum class Interrupt {
@@ -79,7 +83,7 @@ public:
         static unsigned constexpr overflow_flag = 6u;
         static unsigned constexpr negative_flag = 7u;  
 
-        explicit CPU(UniqueMemory memory);
+        explicit CPU(AccessibleMemory::Pieces pieces);
         CPU(CPU const& other) = delete;
         CPU(CPU&& other) = default;
         CPU& operator=(CPU const& other) = delete;

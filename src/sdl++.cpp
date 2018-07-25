@@ -2,6 +2,11 @@
 
 namespace Emulator::Sdl {
 
+char const* Error::what() const noexcept
+{
+        return SDL_GetError();
+}
+
 void WindowDeleter::operator()(Window* window) const noexcept
 {
         SDL_DestroyWindow(window);
@@ -12,23 +17,13 @@ void RendererDeleter::operator()(Renderer* Renderer) const noexcept
         SDL_DestroyRenderer(Renderer);
 }
 
-void TextureDeleter::operator()(Texture* texture) const noexcept
-{
-        SDL_DestroyTexture(texture);
-}
-
-char const* Error::what() const noexcept
-{
-        return SDL_GetError();
-}
-
-Scope::Scope()
+InitGuard::InitGuard()
 {
         if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
                 throw Error();
 }
 
-Scope::~Scope()
+InitGuard::~InitGuard()
 {
         SDL_Quit();
 }
@@ -79,9 +74,26 @@ UniqueRenderer create_renderer(Window& window, Color color)
         return renderer;
 }
 
+Context create_context(std::string const& title,
+                       int width, int height,
+                       Color background_color)
+{
+        UniqueWindow window = create_window(title, width, height);
+        UniqueRenderer renderer = create_renderer(*window, background_color);
+        return {
+                .window = std::move(window),
+                .renderer = std::move(renderer)
+        };
+}
+
+bool key_is_down(Scancode scancode) noexcept
+{
+        auto const state = SDL_GetKeyboardState(nullptr);
+        return state[static_cast<std::size_t>(scancode)];
+}
+
 void set_render_color(Renderer& renderer, Color color)
 {
-
         SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, color.a);
 }
 
@@ -112,29 +124,6 @@ void render_filled_rect(Renderer& renderer, Rect rect, Color color)
 {
         RendererColorGuard _(renderer, color);
         render_filled_rect(renderer, rect);
-}
-
-void render_copy(Renderer& renderer, 
-                 Texture& texture, 
-                 Rect source, 
-                 Rect destination,
-                 Flip flip,
-                 double angle)
-{
-        if (SDL_RenderCopyEx(&renderer,
-                             &texture,
-                             &source,
-                             &destination,
-                             angle,
-                             nullptr, // Center point, fine this way.
-                             static_cast<SDL_RendererFlip>(flip)) < 0) {
-                throw Error();
-        }
-}
-
-Ticks get_ticks() noexcept
-{
-        return SDL_GetTicks();
 }
 
 OptionalEvent poll_event()

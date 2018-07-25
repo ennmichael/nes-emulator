@@ -73,7 +73,7 @@ std::string format_address(unsigned address)
         return format_hex(address, 4);
 }
 
-Bytes read_bytes(std::string const& path)
+ByteVector read_bytes(std::string const& path)
 {
         std::ifstream ifstream(path,
                              std::ios_base::in |
@@ -85,9 +85,9 @@ Bytes read_bytes(std::string const& path)
         return Utils::read_bytes(ifstream);
 }
 
-Bytes read_bytes(std::ifstream& ifstream)
+ByteVector read_bytes(std::ifstream& ifstream)
 {
-        Bytes result;
+        ByteVector result;
 
         for (;;) {
                 Byte const b = ifstream.get();
@@ -102,11 +102,21 @@ Bytes read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-BytePair split_bytes(unsigned pointer) noexcept
+Byte low_byte(unsigned two_bytes) noexcept
+{
+        return two_bytes & 0x00FFu;
+}
+
+Byte high_byte(unsigned two_bytes) noexcept
+{
+        return two_bytes >> CHAR_BIT;
+}
+
+BytePair split_bytes(unsigned two_bytes) noexcept
 {
         return {
-                .low = static_cast<Byte>(pointer & low_byte_mask),
-                .high = static_cast<Byte>(pointer >> CHAR_BIT)
+                .low = low_byte(two_bytes),
+                .high = high_byte(two_bytes)
         };
 }
 

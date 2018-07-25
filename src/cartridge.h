@@ -1,7 +1,6 @@
 #pragma once
 
 #include "utils.h"
-#include "mem.h"
 #include <stdexcept>
 #include <vector>
 #include <memory>
@@ -34,12 +33,15 @@ class Cartridge;
 
 using UniqueCartridge = std::unique_ptr<Cartridge>;
 
+// FIXME
+// This doesn't need to be a class
+// A namespace would do
 struct NESFile {
         static unsigned constexpr header_size = 0x10;
         static unsigned constexpr prg_rom_start = header_size;
 
         explicit NESFile(std::string const& path);
-        explicit NESFile(Bytes new_data);
+        explicit NESFile(ByteVector new_data);
 
         Byte num_prg_rom_banks() const noexcept;
         Byte num_chr_rom_banks() const noexcept;
@@ -52,7 +54,7 @@ struct NESFile {
         ByteBitset first_control_byte() const noexcept;
         ByteBitset second_control_byte() const noexcept;
         
-        Bytes data;
+        ByteVector data;
 
 private:
         void check_data_size() const;
@@ -92,7 +94,7 @@ public:
 
 private:
         NESFile nes_file_;
-        std::array<Byte, 0x2000> prg_ram_ {0};
+        ByteArray<0x2000> prg_ram_ {0};
 };
 
 class MMC1 : public Cartridge {

@@ -3,8 +3,7 @@
 #include <string>
 #include <sstream>
 #include <cassert>
-
-// CPU::translate_opcode is defined in instruction_set.cpp
+#include <algorithm>
 
 using namespace std::string_literals;
 
@@ -64,54 +63,59 @@ unsigned CPU::RAM::translate_address(unsigned address) const noexcept
         return address % real_size;
 }
 
-CPU::AccessibleMemory::AccessibleMemory(Memory& cartridge, Memory& ppu) noexcept
-        : cartridge_(cartridge)
-        , ppu_(ppu)
+CPU::AccessibleMemory::AccessibleMemory(Pieces pieces) noexcept
+        : pieces_(std::move(pieces))
 {}
 
 bool CPU::AccessibleMemory::address_is_writable(unsigned address) const noexcept
 {
-        return ram_.address_is_writable(address) ||
-               cartridge_.address_is_writable(address) ||
-               ppu_.address_is_writable(address);
+        return std::any_of(pieces_.cbegin(), pieces_.cend(),
+                           [&](Memory* piece)
+                           { return piece->address_is_writable(address); });
 }
 
 bool CPU::AccessibleMemory::address_is_readable(unsigned address) const noexcept
 {
-        return ram_.address_is_readable(address) ||
-               cartridge_.address_is_readable(address) ||
-               ppu_.address_is_readable(address);
+        return std::any_of(pieces_.cbegin(), pieces_.cend(),
+                           [&](Memory* piece)
+                           { return piece->address_is_readable(address); });
 }
 
 void CPU::AccessibleMemory::write_byte(unsigned address, Byte byte)
 {
-        if (ram_.address_is_writable(address)) {
-                ram_.write_byte(address, byte);
-        } else if (cartridge_.address_is_writable(address)) {
-                cartridge_.write_byte(address, byte);
-        } else if (ppu_.address_is_writable(address)) {
-                ppu_.write_byte(address, byte);
-        } else {
-                throw InvalidAddress("CPU can't write to address "s +
-                                     Utils::format_address(address));
-        }
+        find_writable_piece().write_byte(address, byte);
 }
 
 Byte CPU::AccessibleMemory::read_byte(unsigned address)
 {
-        if (ram_.address_is_readable(address))
-                return ram_.read_byte(address);
-        if (cartridge_.address_is_readable(address))
-                return cartridge_.read_byte(address);
-        if (ppu_.address_is_readable(address))
-                return ppu_.read_byte(address);
-        throw InvalidAddress("CPU can't read address "s +
-                             Utils::format_address(address));
+        return find_readable_piece().read_byte(address);
+}
+
+Memory& CPU::AccessibleMemory::find_writable_piece(unsigned address)
+{
+        return find_piece([&](Memory* piece)
+                          { return piece->address_is_writable(address); },
+                          [&]
+                          {
+                                  return "CPU can't write to address "s +
+                                         Utils::format_address(address) + "."s;
+                          });
+}
+
+Memory& CPU::AccessibleMemory::find_readable_piece(unsigned address)
+{
+        return find_piece([&](Memory* piece)
+                          { return piece->address_is_readable(address); },
+                          [&]
+                          {
+                                  return "CPU can't read address "s +
+                                         Utils::format_address(address) + "."s;
+                          });
 }
 
 struct CPU::Impl {
-        explicit Impl(UniqueMemory memory)
-                : memory(std::move(memory))
+        explicit Impl(AccessibleMemory::Pieces pieces)
+                : memory(std::move(pieces))
         {
                 load_interrupt_handler(Interrupt::reset);
         }
@@ -614,7 +618,7 @@ struct CPU::Impl {
                 return result;
         }
 
-        void implied_brk() noexcept
+        void implied_brk()
         {
                 if (p.test(interrupt_disable_flag))
                         return;
@@ -859,7 +863,7 @@ struct CPU::Impl {
                 }
         }
 
-        UniqueMemory memory;
+        AccessibleMemory memory;
         unsigned pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
@@ -868,8 +872,8 @@ struct CPU::Impl {
         ByteBitset p = 0x20;
 };
 
-CPU::CPU(UniqueMemory memory)
-        : impl_(std::make_unique<Impl>(std::move(memory)))
+CPU::CPU(std::vector<Memory*> pieces)
+        : impl_(std::move(pieces))
 {}
 
 CPU::~CPU() = default;

@@ -1,8 +1,7 @@
 #include "catch.hpp"
+#include "../src/utils.h"
 #include "../src/cpu.h"
-#include "../src/mem.h"
 #include <utility>
-#include <array>
 
 /**
  * TODO Interrupts haven't been tested.
@@ -10,11 +9,11 @@
 
 namespace {
 
-unsigned constexpr program_start = 0x600u;
+unsigned constexpr program_start = 0x0600u;
 
 class TestMemory : public Emulator::CPU::RAM {
 public:
-        explicit TestMemory(Emulator::Bytes const& program)
+        explicit TestMemory(Emulator::ByteVector const& program)
         {
                 for (unsigned i = 0; i < program.size(); ++i) {
                         auto const byte = program[i];
@@ -28,6 +27,7 @@ public:
                 unsigned const reset_handler_address =
                         CPU::interrupt_handler_address(CPU::Interrupt::reset);
                 return address == reset_handler_address ||
+                       address == reset_handler_address + 1 ||
                        RAM::address_is_readable(address);
         }
 
@@ -37,14 +37,14 @@ public:
                 unsigned const reset_handler_address =
                         CPU::interrupt_handler_address(CPU::Interrupt::reset);
                 if (address == reset_handler_address)
-                        return program_start & Utils::low_byte_mask;
+                        return Emulator::Utils::low_byte(program_start);
                 else if (address == reset_handler_address + 1)
-                        return program_start & Utils::high_byte_mask;
+                        return Emulator::Utils::high_byte(program_start);
                 return RAM::read_byte(address);
         }
 };
 
-Emulator::UniqueCPU execute_example_program(Emulator::Bytes const& program)
+Emulator::UniqueCPU execute_example_program(Emulator::ByteVector const& program)
 {
         auto cpu = std::make_unique<Emulator::CPU>(
                 std::make_unique<TestMemory>(program)
@@ -66,7 +66,7 @@ TEST_CASE("6502 instructions tests")
                   LDY #$03
                  */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x01, 0xA2, 0x02, 0xA0, 0x03
                 };
                 
@@ -120,7 +120,7 @@ TEST_CASE("6502 instructions tests")
                  STY $0460
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x01, 0xA2, 0x05, 0xA0, 0x0A, 0x85, 0x00, 
                         0x95, 0x01, 0x8D, 0x00, 0x03, 0x9D, 0x11, 0x03,
                         0x99, 0x11, 0x03, 0xA9, 0x70, 0x85, 0x70, 0xA9, 
@@ -206,7 +206,7 @@ TEST_CASE("6502 instructions tests")
                  PLP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x11, 0x48, 0xA9, 0x00, 0x48, 0x08, 0x68, 0x28
                 };
 
@@ -316,7 +316,7 @@ TEST_CASE("6502 instructions tests")
                  ADC #$02
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x02, 0x85, 0x04, 0x8D, 0x00, 0x02, 0xA9, 
                         0x05, 0x69, 0x06, 0x48, 0x08, 0x65, 0x04, 0x48,
                         0x08, 0xA2, 0x02, 0xA0, 0x03, 0x75, 0x02, 0x48, 
@@ -500,7 +500,7 @@ TEST_CASE("6502 instructions tests")
                  SBC #$02
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x02, 0x85, 0x04, 0x8D, 0x00, 0x02, 0xA9, 
                         0x05, 0x38, 0xE9, 0x06, 0x08, 0x48, 0xE5, 0x04,
                         0x08, 0x48, 0xA2, 0x02, 0xA0, 0x03, 0xF5, 0x02, 
@@ -655,7 +655,7 @@ TEST_CASE("6502 instructions tests")
                  PHA
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x05, 0x8D, 0x00, 0x03, 0xA9, 
                         0x33, 0x29, 0xF0, 0x08, 0x48, 0x25, 0x05, 0x08,
                         0x48, 0xA2, 0x03, 0xA0, 0x02, 0x35, 0x02, 0x08, 
@@ -765,7 +765,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x42, 0x85, 0x05, 0x8D, 0x00, 0x04, 0x8D, 
                         0x01, 0x04, 0xC6, 0x00, 0x08, 0xA2, 0x02, 0xD6,
                         0x03, 0x08, 0xD6, 0x03, 0x08, 0xCE, 0x00, 0x04, 
@@ -844,7 +844,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x42, 0x85, 0x05, 0x8D, 0x00, 0x04, 0x8D, 
                         0x01, 0x04, 0xE6, 0x00, 0x08, 0xA2, 0x02, 0xF6,
                         0x03, 0x08, 0xF6, 0x03, 0x08, 0xEE, 0x00, 0x04, 
@@ -915,7 +915,7 @@ TEST_CASE("6502 instructions tests")
                  PHA
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x48, 0xBA, 0x08, 0x86, 0x00, 0xA2, 
                         0x42, 0x9A, 0x08, 0x48
                 };
@@ -976,7 +976,7 @@ TEST_CASE("6502 instructions tests")
                  ASL $0200,X
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x25, 0x8D, 0x02, 0x02, 0xA9, 
                         0x96, 0x0A, 0x48, 0x08, 0xA2, 0x02, 0x06, 0x25,
                         0x08, 0x16, 0x23, 0x08, 0x0E, 0x02, 0x02, 0x08, 
@@ -1066,7 +1066,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA2, 0x22, 0x86, 0x00, 0x8E, 0x00, 0x02, 0xA2, 
                         0x8F, 0x86, 0x01, 0x8E, 0x01, 0x02, 0xA9, 0xFF,
                         0x24, 0x00, 0x08, 0x2C, 0x00, 0x02, 0x08, 0x24, 
@@ -1195,7 +1195,7 @@ TEST_CASE("6502 instructions tests")
                  
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x05, 0x8D, 0x00, 0x03, 0xA9, 
                         0x33, 0x49, 0xF0, 0x08, 0x48, 0x45, 0x05, 0x08,
                         0x48, 0xA2, 0x03, 0xA0, 0x02, 0x55, 0x02, 0x08, 
@@ -1310,7 +1310,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0x38, 0x08, 0x18, 0x08, 0x78, 0x08, 0x58, 0x08, 
                         0x38, 0x78, 0x08, 0x18, 0x08, 0x58, 0x08, 0xA9,
                         0x7F, 0x69, 0x01, 0x08, 0xB8, 0x08
@@ -1384,7 +1384,7 @@ TEST_CASE("6502 instructions tests")
                  LSR $0200,X
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x25, 0x8D, 0x02, 0x02, 0xA9, 
                         0x96, 0x4A, 0x48, 0x08, 0xA2, 0x02, 0x46, 0x25,
                         0x08, 0x56, 0x23, 0x08, 0x4E, 0x02, 0x02, 0x08, 
@@ -1481,7 +1481,7 @@ TEST_CASE("6502 instructions tests")
                  PHA
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x05, 0x8D, 0x00, 0x03, 0xA9, 
                         0x33, 0x09, 0xF0, 0x08, 0x48, 0x05, 0x05, 0x08,
                         0x48, 0xA2, 0x03, 0xA0, 0x02, 0x15, 0x02, 0x08, 
@@ -1610,7 +1610,7 @@ TEST_CASE("6502 instructions tests")
                  PHA
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0xE2, 0xAA, 0xA9, 0x00, 0x8A, 0x48, 0xCA, 
                         0x8A, 0x48, 0xCA, 0x8A, 0x48, 0xE8, 0x8A, 0x48,
                         0xE8, 0x8A, 0x48, 0xA8, 0xA9, 0x00, 0x98, 0x48, 
@@ -1689,7 +1689,7 @@ TEST_CASE("6502 instructions tests")
                  ROL $0200,X
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x25, 0x8D, 0x02, 0x02, 0xA9, 
                         0x96, 0x2A, 0x48, 0x08, 0xA2, 0x02, 0x26, 0x25,
                         0x08, 0x36, 0x23, 0x08, 0x2E, 0x02, 0x02, 0x08, 
@@ -1758,7 +1758,7 @@ TEST_CASE("6502 instructions tests")
                  ROR $0200,X
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x25, 0x8D, 0x02, 0x02, 0xA9, 
                         0x96, 0x6A, 0x48, 0x08, 0xA2, 0x02, 0x66, 0x25,
                         0x08, 0x76, 0x23, 0x08, 0x6E, 0x02, 0x02, 0x08, 
@@ -1857,7 +1857,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0x22, 0x85, 0x05, 0x8D, 0x00, 0x03, 0xA9, 
                         0x33, 0xC9, 0xF0, 0x08, 0xC9, 0x0B, 0x08, 0xC9,
                         0x33, 0x08, 0xC5, 0x05, 0x08, 0xA9, 0x22, 0xC5, 
@@ -1970,7 +1970,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA2, 0x10, 0xE0, 0x10, 0x08, 0xE0, 0x0F, 0x08, 
                         0xE0, 0xFF, 0x08, 0xA9, 0x10, 0x85, 0x00, 0xE4,
                         0x00, 0x08, 0xA9, 0x20, 0x85, 0x01, 0xE4, 0x01, 
@@ -2076,7 +2076,7 @@ TEST_CASE("6502 instructions tests")
                  PHP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA0, 0x10, 0xC0, 0x10, 0x08, 0xC0, 0x0F, 0x08, 
                         0xC0, 0xFF, 0x08, 0xA9, 0x10, 0x85, 0x00, 0xC4,
                         0x00, 0x08, 0xA9, 0x20, 0x85, 0x01, 0xC4, 0x01, 
@@ -2153,7 +2153,7 @@ TEST_CASE("6502 instructions tests")
                    LDA #$00
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0x4C, 0x05, 0x06, 0xA9, 0x01, 0xA9, 0x00
                 };
 
@@ -2250,7 +2250,7 @@ TEST_CASE("6502 instructions tests")
                    NOP ; Alive
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0xFE, 0x69, 0x01, 0x10, 0x02, 0x85, 0x00, 
                         0x30, 0x02, 0x85, 0x01, 0x85, 0x02, 0xA9, 0x00,
                         0x69, 0x05, 0xE6, 0x04, 0xA6, 0x04, 0xE0, 0x0A, 
@@ -2319,7 +2319,7 @@ TEST_CASE("6502 instructions tests")
                    NOP
                 */
 
-                Emulator::Bytes program {
+                Emulator::ByteVector program {
                         0xA9, 0xFF, 0x85, 0x00, 0x4C, 0x0E, 0x06, 0xE6, 
                         0x00, 0xE6, 0x01, 0xE6, 0x02, 0x60, 0x08, 0x20,
                         0x07, 0x06, 0x08, 0x20, 0x07, 0x06, 0x08, 0x20, 

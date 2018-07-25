@@ -59,9 +59,9 @@ private:
                 }
         }
 
-        std::array<Byte, pattern_tables_size> pattern_tables_ {0};
-        std::array<Byte, name_tables_real_size> name_tables_ {0};
-        std::array<Byte, palettes_real_size> palettes_ {0};
+        ByteArray<pattern_tables_size> pattern_tables_ {0};
+        ByteArray<name_tables_real_size> name_tables_ {0};
+        ByteArray<palettes_real_size> palettes_ {0};
 };
 
 struct Sprite {
@@ -82,11 +82,11 @@ struct Sprite {
 };
 
 static unsigned constexpr oam_size = 0x0100u;
-using OAM = std::array<Byte, oam_size>;
+using OAM = ByteArray<oam_size>;
 
 unsigned constexpr screen_width = 256u;
 unsigned constexpr screen_height = 240u;
-using Screen = std::array<std::array<Byte, screen_width>, screen_height>;
+using Screen = ByteMatrix<screen_width, screen_height>;
 
 class DoubleWriteRegister {
 public:
@@ -124,12 +124,6 @@ public:
                 background_square_size / background_tile_size;
 
         explicit PPU(ReadableMemory& dma_memory) noexcept;
-
-        PPU(PPU const& other) = delete;
-        PPU(PPU&& other) = delete;
-        PPU& operator=(PPU const& other) = delete;
-        PPU& operator=(PPU&& other) = delete;
-        ~PPU() = default;
 
         void vblank_started();
         void vblank_finished();
@@ -194,6 +188,8 @@ private:
         OAM oam_ {0};
         ReadableMemory& dma_memory_;
 };
+
+using UniquePPU = std::unique_ptr<PPU>;
 
 }
 
