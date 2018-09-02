@@ -6,12 +6,12 @@ namespace Emulator {
 
 class Joypads : public Memory {
 public:
-        Byte constexpr base_joypad_value = 0x40u;
-        unsigned constexpr first_joypad_address = 0x4016u;
-        unsigned constexpr second_joypad_address = first_joypad_address + 1;
+        static Byte constexpr base_joypad_value = 0x40;
+        static unsigned constexpr first_joypad_address = 0x4016;
+        static unsigned constexpr second_joypad_address = first_joypad_address + 1;
 
-        bool address_is_writable() const noexcept override;
-        bool address_is_readable() const noexcept override;
+        bool address_is_writable(unsigned address) const noexcept override;
+        bool address_is_readable(unsigned address) const noexcept override;
         void write_byte(unsigned address, Byte byte) override;
         Byte read_byte(unsigned address) override;
 

@@ -14,7 +14,7 @@ NESFile::NESFile(std::string const& path)
         : NESFile(Utils::read_bytes(path))
 {}
 
-NESFile::NESFile(ByteVector new_data)
+NESFile::NESFile(std::vector<Byte> new_data)
         : data(std::move(new_data))
 {
         check_data_size();

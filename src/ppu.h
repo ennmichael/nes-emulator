@@ -6,24 +6,24 @@ namespace Emulator {
 
 class VRAM : public Memory {
 public:
-        static unsigned constexpr size = 0x10000u;
+        static unsigned constexpr size = 0x10000;
 
-        static unsigned constexpr pattern_tables_start = 0x0000u;
-        static unsigned constexpr pattern_tables_end = 0x2000u;
-        static unsigned constexpr pattern_table_size = 0x1000u;
+        static unsigned constexpr pattern_tables_start = 0x0000;
+        static unsigned constexpr pattern_tables_end = 0x2000;
+        static unsigned constexpr pattern_table_size = 0x1000;
         static unsigned constexpr pattern_tables_size =
                 pattern_tables_end - pattern_tables_start;
 
-        static unsigned constexpr name_table_size = 0x03C0u;
-        static unsigned constexpr attribute_table_size = 0x0040u;
+        static unsigned constexpr name_table_size = 0x03C0;
+        static unsigned constexpr attribute_table_size = 0x0040;
         static unsigned constexpr name_tables_start = pattern_tables_end;
-        static unsigned constexpr name_tables_end = 0x3F00u;
+        static unsigned constexpr name_tables_end = 0x3F00;
         static unsigned constexpr name_tables_size =
                 name_tables_end - name_tables_start;
         static unsigned constexpr name_tables_real_size =
                 0x3000u - name_tables_start;
 
-        static unsigned constexpr palette_size = 0x0010u;
+        static unsigned constexpr palette_size = 0x0010;
         static unsigned constexpr background_palette_start = name_tables_end;
         static unsigned constexpr background_palette_end =
                 background_palette_start + palette_size;
@@ -33,7 +33,7 @@ public:
         static unsigned constexpr palettes_real_size =
                 sprite_palette_end - background_palette_start;
         static unsigned constexpr palettes_start = background_palette_start;
-        static unsigned constexpr palettes_end = 0x4000u;
+        static unsigned constexpr palettes_end = 0x4000;
         static unsigned constexpr palettes_size = palettes_end - palettes_start;
 
         static bool address_is_accessible(unsigned address) noexcept;
@@ -48,20 +48,19 @@ private:
         template <class Self>
         static auto& destination(Self& self, unsigned address) noexcept
         {
-                if (pattern_tables_start <= address && address < pattern_tables_end) {
+                if (pattern_tables_start <= address && address < pattern_tables_end)
                         return self.pattern_tables_[address];
-                } else if (name_tables_start <= address && address < name_tables_end) {
+                else if (name_tables_start <= address && address < name_tables_end)
                         return self.name_tables_[address % name_tables_real_size];
-                } else if (palettes_start <= address && address < palettes_end) {
+                else if (palettes_start <= address && address < palettes_end)
                         return self.palettes_[address % palettes_real_size];
-                } else {
+                else
                         return destination(self, address % palettes_end);
-                }
         }
 
-        ByteArray<pattern_tables_size> pattern_tables_ {0};
-        ByteArray<name_tables_real_size> name_tables_ {0};
-        ByteArray<palettes_real_size> palettes_ {0};
+        std::array<Byte, pattern_tables_size> pattern_tables_ {0};
+        std::array<Byte, name_tables_real_size> name_tables_ {0};
+        std::array<Byte, palettes_real_size> palettes_ {0};
 };
 
 struct Sprite {
@@ -81,12 +80,12 @@ struct Sprite {
         std::bitset<2> color_bits() const noexcept;
 };
 
-static unsigned constexpr oam_size = 0x0100u;
-using OAM = ByteArray<oam_size>;
+static unsigned constexpr oam_size = 0x0100;
+using OAM = std::array<Byte, oam_size>;
 
-unsigned constexpr screen_width = 256u;
-unsigned constexpr screen_height = 240u;
-using Screen = ByteMatrix<screen_width, screen_height>;
+unsigned constexpr screen_width = 256;
+unsigned constexpr screen_height = 240;
+using Screen = Matrix<Byte, screen_width, screen_height>;
 
 class DoubleWriteRegister {
 public:
@@ -101,21 +100,21 @@ public:
         bool complete() const noexcept;
 
 private:
-        unsigned value_ = 0u;
+        unsigned value_ = 0;
         bool complete_ = true;
 };
 
 class PPU : public Memory {
 public:
-        static unsigned constexpr control_register = 0x2000u;
-        static unsigned constexpr mask_register = 0x2001u;
-        static unsigned constexpr status_register = 0x2002u;
-        static unsigned constexpr oam_address_register = 0x2003u;
-        static unsigned constexpr oam_data_register = 0x2004u;
-        static unsigned constexpr scroll_register = 0x2005u;
-        static unsigned constexpr vram_address_register = 0x2006u;
-        static unsigned constexpr vram_data_register = 0x2007u;
-        static unsigned constexpr oam_dma_register = 0x4014u;
+        static unsigned constexpr control_register = 0x2000;
+        static unsigned constexpr mask_register = 0x2001;
+        static unsigned constexpr status_register = 0x2002;
+        static unsigned constexpr oam_address_register = 0x2003;
+        static unsigned constexpr oam_data_register = 0x2004;
+        static unsigned constexpr scroll_register = 0x2005;
+        static unsigned constexpr vram_address_register = 0x2006;
+        static unsigned constexpr vram_data_register = 0x2007;
+        static unsigned constexpr oam_dma_register = 0x4014;
 
         static unsigned constexpr sprite_width = 8;
         static unsigned constexpr background_square_size = 16;

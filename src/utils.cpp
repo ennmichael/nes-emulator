@@ -73,7 +73,7 @@ std::string format_address(unsigned address)
         return format_hex(address, 4);
 }
 
-ByteVector read_bytes(std::string const& path)
+std::vector<Byte> read_bytes(std::string const& path)
 {
         std::ifstream ifstream(path,
                              std::ios_base::in |
@@ -85,9 +85,9 @@ ByteVector read_bytes(std::string const& path)
         return Utils::read_bytes(ifstream);
 }
 
-ByteVector read_bytes(std::ifstream& ifstream)
+std::vector<Byte> read_bytes(std::ifstream& ifstream)
 {
-        ByteVector result;
+        std::vector<Byte> result;
 
         for (;;) {
                 Byte const b = ifstream.get();

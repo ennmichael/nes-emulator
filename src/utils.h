@@ -41,12 +41,9 @@ using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
 using SignedByte = std::int8_t;
 using Byte = std::uint8_t;
 using Address = std::uint16_t; // TODO Start using this (???)
-using ByteVector = std::vector<Byte>;
-template <std::size_t N>
-using ByteArray = std::array<Byte, N>;
-template <std::size_t W, std::size_t H>
-using ByteMatrix = std::array<ByteArray<W>, H>;
 using ByteBitset = std::bitset<CHAR_BIT>;
+template <class T, auto W, auto H>
+using Matrix = std::array<std::array<T, W>, H>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
 SignedByte constexpr signed_byte_max = std::numeric_limits<SignedByte>::max();
@@ -106,8 +103,8 @@ public:
 std::string format_hex(unsigned value, int width);
 std::string format_address(unsigned address);
 
-ByteVector read_bytes(std::string const& path);
-ByteVector read_bytes(std::ifstream& ifstream);
+std::vector<Byte> read_bytes(std::string const& path);
+std::vector<Byte> read_bytes(std::ifstream& ifstream);
 
 template <class T>
 bool bit(T t, unsigned bit_num) noexcept

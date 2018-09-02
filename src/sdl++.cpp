@@ -1,6 +1,6 @@
 #include "sdl++.h"
 
-namespace Emulator::Sdl {
+namespace Sdl {
 
 char const* Error::what() const noexcept
 {

@@ -1,5 +1,7 @@
-#include "joypad.h"
+#include "joypads.h"
 #include "sdl++.h"
+
+using namespace std::string_literals;
 
 namespace Emulator {
 

@@ -83,12 +83,12 @@ bool CPU::AccessibleMemory::address_is_readable(unsigned address) const noexcept
 
 void CPU::AccessibleMemory::write_byte(unsigned address, Byte byte)
 {
-        find_writable_piece().write_byte(address, byte);
+        find_writable_piece(address).write_byte(address, byte);
 }
 
 Byte CPU::AccessibleMemory::read_byte(unsigned address)
 {
-        return find_readable_piece().read_byte(address);
+        return find_readable_piece(address).read_byte(address);
 }
 
 Memory& CPU::AccessibleMemory::find_writable_piece(unsigned address)
@@ -114,11 +114,15 @@ Memory& CPU::AccessibleMemory::find_readable_piece(unsigned address)
 }
 
 struct CPU::Impl {
-        explicit Impl(AccessibleMemory::Pieces pieces)
-                : memory(std::move(pieces))
+        explicit Impl(std::unique_ptr<AccessibleMemory> memory)
+                : memory(std::move(memory))
         {
                 load_interrupt_handler(Interrupt::reset);
         }
+
+        explicit Impl(AccessibleMemory::Pieces memory_pieces)
+                : memory(std::make_unique<AccessibleMemory>(memory_pieces))
+        {}
 
         unsigned stack_top_address() const noexcept
         {
@@ -863,7 +867,7 @@ struct CPU::Impl {
                 }
         }
 
-        AccessibleMemory memory;
+        std::unique_ptr<AccessibleMemory> memory;
         unsigned pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
@@ -872,8 +876,8 @@ struct CPU::Impl {
         ByteBitset p = 0x20;
 };
 
-CPU::CPU(std::vector<Memory*> pieces)
-        : impl_(std::move(pieces))
+CPU::CPU(AccessibleMemory::Pieces pieces)
+        : impl_(std::make_unique<Impl>(std::move(pieces)))
 {}
 
 CPU::~CPU() = default;

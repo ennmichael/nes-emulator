@@ -11,7 +11,7 @@
 #include <optional>
 #include <cstdint>
 
-namespace Emulator::Sdl {
+namespace Sdl {
 
 class Error : public std::exception {
 public:

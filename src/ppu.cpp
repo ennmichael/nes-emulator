@@ -39,6 +39,12 @@ Byte VRAM::read_byte(unsigned address) const
         return destination(*this, address);
 }
 
+Byte VRAM::read_byte(unsigned address)
+{
+        auto const const_this = this;
+        return const_this->read_byte(address);
+}
+
 auto Sprite::priority() const noexcept -> Priority
 {
         return (attributes.test(5)) ?

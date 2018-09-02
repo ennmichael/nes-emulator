@@ -37,7 +37,7 @@ public:
         private:
                 unsigned translate_address(unsigned address) const noexcept;
 
-                ByteArray<real_size> ram_ {0};
+                std::array<Byte,real_size> ram_ {0};
         };
 
         class AccessibleMemory : public Memory {
@@ -61,7 +61,7 @@ public:
                                                     pieces_.cend(), p);
                         if (i == pieces_.cend())
                                 throw InvalidAddress(e());
-                        return *i;
+                        return **i;
                 }
 
                 Pieces pieces_;
