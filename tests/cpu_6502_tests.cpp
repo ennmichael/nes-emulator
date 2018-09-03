@@ -48,11 +48,12 @@ public:
         }
 };
 
-Emulator::UniqueCPU execute_example_program(TestMemory& test_memory)
+Emulator::UniqueCPU execute_example_program(TestMemory& test_memory,
+                                            std::size_t program_size)
 {
         auto cpu = std::make_unique<Emulator::CPU>(
                 Emulator::CPU::AccessibleMemory::Pieces {&test_memory});
-        while (cpu->pc() != program_start + program.size())
+        while (cpu->pc() != program_start + program_size)
                 cpu->execute_instruction();
         return cpu;
 }
@@ -72,8 +73,10 @@ TEST_CASE("6502 instructions tests")
                 std::vector<Emulator::Byte> program {
                         0xA9, 0x01, 0xA2, 0x02, 0xA0, 0x03
                 };
-                
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x01);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x03);
@@ -133,7 +136,9 @@ TEST_CASE("6502 instructions tests")
                         0x04
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0xDD);
                 CHECK(cpu->x() == 0x05);
                 CHECK(cpu->y() == 0x0A);
@@ -213,7 +218,9 @@ TEST_CASE("6502 instructions tests")
                         0xA9, 0x11, 0x48, 0xA9, 0x00, 0x48, 0x08, 0x68, 0x28
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x22);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
@@ -333,7 +340,9 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x69, 0x01, 0x48, 0x08, 0x69, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0xA3);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
@@ -517,7 +526,9 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x48, 0xE9, 0x01, 0x08, 0x48, 0xE9, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x5B);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
@@ -669,7 +680,9 @@ TEST_CASE("6502 instructions tests")
                         0x31, 0x41, 0x08, 0x48
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x02);
                 CHECK(cpu->x() == 0x30);
                 CHECK(cpu->y() == 0x02);
@@ -775,7 +788,9 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xDE, 0xFD, 0x03, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x42);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -854,7 +869,9 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xFE, 0xFD, 0x03, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x42);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -923,7 +940,9 @@ TEST_CASE("6502 instructions tests")
                         0x42, 0x9A, 0x08, 0x48
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x22);
                 CHECK(cpu->x() == 0x42);
                 CHECK(cpu->y() == 0x00);
@@ -986,7 +1005,9 @@ TEST_CASE("6502 instructions tests")
                         0x1E, 0x00, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x2C);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -1080,7 +1101,9 @@ TEST_CASE("6502 instructions tests")
                         0x01, 0x08, 0x2C, 0x01, 0x02, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0xA3);
                 CHECK(cpu->x() == 0x8F);
                 CHECK(cpu->y() == 0x00);
@@ -1209,7 +1232,9 @@ TEST_CASE("6502 instructions tests")
                         0x51, 0x41, 0x08, 0x48
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x03);
                 CHECK(cpu->x() == 0x30);
                 CHECK(cpu->y() == 0x02);
@@ -1319,7 +1344,9 @@ TEST_CASE("6502 instructions tests")
                         0x7F, 0x69, 0x01, 0x08, 0xB8, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x80);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
@@ -1394,7 +1421,9 @@ TEST_CASE("6502 instructions tests")
                         0x5E, 0x00, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x4B);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -1495,7 +1524,9 @@ TEST_CASE("6502 instructions tests")
                         0x11, 0x41, 0x08, 0x48
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x23);
                 CHECK(cpu->x() == 0x30);
                 CHECK(cpu->y() == 0x02);
@@ -1621,7 +1652,9 @@ TEST_CASE("6502 instructions tests")
                         0x48, 0xC8, 0x98, 0x48
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0xE2);
                 CHECK(cpu->x() == 0xE2);
                 CHECK(cpu->y() == 0xE2);
@@ -1699,7 +1732,9 @@ TEST_CASE("6502 instructions tests")
                         0x3E, 0x00, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x2C);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -1768,7 +1803,9 @@ TEST_CASE("6502 instructions tests")
                         0x7E, 0x00, 0x02
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x4B);
                 CHECK(cpu->x() == 0x02);
                 CHECK(cpu->y() == 0x00);
@@ -1872,7 +1909,9 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0xD1, 0x41, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x03);
                 CHECK(cpu->x() == 0x30);
                 CHECK(cpu->y() == 0x02);
@@ -1984,7 +2023,9 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x10);
                 CHECK(cpu->y() == 0x00);
@@ -2090,7 +2131,9 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x10);
@@ -2160,7 +2203,9 @@ TEST_CASE("6502 instructions tests")
                         0x4C, 0x05, 0x06, 0xA9, 0x01, 0xA9, 0x00
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
@@ -2267,7 +2312,9 @@ TEST_CASE("6502 instructions tests")
                         0xEA
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0x02);
                 CHECK(cpu->x() == 0x0A);
                 CHECK(cpu->y() == 0x00);
@@ -2329,7 +2376,9 @@ TEST_CASE("6502 instructions tests")
                         0x1A, 0x06, 0xEA
                 };
 
-                Emulator::UniqueCPU cpu = execute_example_program(program);
+                TestMemory test_memory(program);
+                Emulator::UniqueCPU cpu = execute_example_program(test_memory, program.size());
+
                 CHECK(cpu->a() == 0xFF);
                 CHECK(cpu->x() == 0x00);
                 CHECK(cpu->y() == 0x00);
