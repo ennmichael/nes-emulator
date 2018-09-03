@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 
 
 import io
@@ -8,17 +8,14 @@ TAB = ' ' * 8
 
 
 def fix_tests(source_lines):
-    return [
-        (l.replace('Emulator::CPU', 'Emulator::UniqueCPU')
-          .replace('cpu.a()', 'cpu->a()')
-          .replace('cpu.x()', 'cpu->x()')
-          .replace('cpu.y()', 'cpu->y()')
-          .replace('cpu.pc() ', 'cpu->pc() ')
-          .replace('cpu.p()', 'cpu->p() ')
-          .replace('cpu.sp()', 'cpu->sp()')
-          .replace('cpu.read_byte', 'cpu->read_byte'))
-        for l in source_lines
-    ]
+    return [fix_line(l) for l in source_lines]
+
+
+def fix_line(l):
+    if l == 'Emulator::UniqueCPU cpu = execute_example_program(program);':
+        return f'TestMemory test_memory(program);\n${l.replace("program", "test_memory")}'
+    else:
+        return l
 
 
 def read_lines():
@@ -28,8 +25,8 @@ def read_lines():
 
 if __name__ == '__main__':
     lines = read_lines()
+    print(lines)
     with io.open('./tests/cpu_6502_tests.cpp', 'w') as f:
         for l in fix_tests(lines):
             f.write(l)
-
 

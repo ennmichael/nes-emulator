@@ -3,6 +3,10 @@
 #include "../src/cpu.h"
 #include <utility>
 
+
+#include <iostream> // TODO Remove me
+
+
 /**
  * TODO Interrupts haven't been tested.
  */
@@ -44,11 +48,10 @@ public:
         }
 };
 
-Emulator::UniqueCPU execute_example_program(std::vector<Emulator::Byte> const& program)
+Emulator::UniqueCPU execute_example_program(TestMemory& test_memory)
 {
-        auto test_memory = std::make_unique<TestMemory>(program);
         auto cpu = std::make_unique<Emulator::CPU>(
-                Emulator::CPU::AccessibleMemory::Pieces {test_memory.get()});
+                Emulator::CPU::AccessibleMemory::Pieces {&test_memory});
         while (cpu->pc() != program_start + program.size())
                 cpu->execute_instruction();
         return cpu;

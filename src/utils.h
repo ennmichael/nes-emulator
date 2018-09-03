@@ -84,6 +84,8 @@ public:
         virtual bool address_is_writable(unsigned address) const noexcept = 0;
         virtual void write_byte(unsigned address, Byte byte) = 0;
         void write_pointer(unsigned address, unsigned pointer);
+        // TODO instead of doing checks in read_memory and write_memory,
+        // how about read_memory_safe and write_memory_safe member functions?
 };
 
 using UniqueReadableMemory = std::unique_ptr<ReadableMemory>;

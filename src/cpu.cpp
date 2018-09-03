@@ -121,7 +121,7 @@ struct CPU::Impl {
         }
 
         explicit Impl(AccessibleMemory::Pieces memory_pieces)
-                : memory(std::make_unique<AccessibleMemory>(memory_pieces))
+                : Impl(std::make_unique<AccessibleMemory>(memory_pieces))
         {}
 
         unsigned stack_top_address() const noexcept

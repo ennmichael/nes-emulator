@@ -44,7 +44,7 @@ public:
         public:
                 using Pieces = std::vector<Memory*>;
 
-                AccessibleMemory(Pieces pieces) noexcept;
+                explicit AccessibleMemory(Pieces pieces) noexcept;
                 bool address_is_writable(unsigned address) const noexcept override;
                 bool address_is_readable(unsigned address) const noexcept override;
                 void write_byte(unsigned address, Byte byte) override;
@@ -73,15 +73,15 @@ public:
                 reset
         };
 
-        static unsigned constexpr address_size = 2u;
+        static unsigned constexpr address_size = 2;
 
-        static unsigned constexpr carry_flag = 0u;
-        static unsigned constexpr zero_flag = 1u;
-        static unsigned constexpr interrupt_disable_flag = 2u;
-        static unsigned constexpr break_flag = 4u;
-        static unsigned constexpr unused_flag = 5u;
-        static unsigned constexpr overflow_flag = 6u;
-        static unsigned constexpr negative_flag = 7u;  
+        static unsigned constexpr carry_flag = 0;
+        static unsigned constexpr zero_flag = 1;
+        static unsigned constexpr interrupt_disable_flag = 2;
+        static unsigned constexpr break_flag = 4;
+        static unsigned constexpr unused_flag = 5;
+        static unsigned constexpr overflow_flag = 6;
+        static unsigned constexpr negative_flag = 7;  
 
         explicit CPU(AccessibleMemory::Pieces pieces);
         CPU(CPU const& other) = delete;
