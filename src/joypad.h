@@ -4,12 +4,6 @@
 #include "sdl++.h"
 #include <unordered_map>
 
-/* FIXME
- * This is a bit bad. We should have a Joypad class which isn't a type of
- * Memory, and a type of Memory called JoypadMemory which would also (some day?)
- * handle the second joypad as well. The Address parameter is unused so clearly that is bad.
- */
-
 namespace Emulator {
 
 enum class JoypadButton {
