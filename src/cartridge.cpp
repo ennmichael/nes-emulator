@@ -79,10 +79,8 @@ ByteBitset ROMImage::second_control_byte() const noexcept
 
 Byte ROMImage::read_prg_rom_byte(Address address) const
 {
-        if (!is_prg_rom(address)) {
-                throw InvalidAddress("Invalid PRG ROM address "s +
-                                     Utils::format_address(address));
-        }
+        if (!is_prg_rom(address))
+                throw InvalidRead(address);
         address = apply_mirroring(address);
         return data_[header_size + address];
 }
@@ -154,46 +152,33 @@ NROM::NROM(ROMImage rom_image)
         }
 }
 
-bool NROM::address_is_writable(Address address) const noexcept
+bool NROM::is_prg_ram(Address address) noexcept
+{
+        return prg_ram_start <= address && address <= prg_ram_end;
+}
+
+bool NROM::address_is_writable_impl(Address address) const noexcept
 {
         return is_prg_ram(address);
 }
 
-bool NROM::address_is_readable(Address address) const noexcept
+bool NROM::address_is_readable_impl(Address address) const noexcept
 {
         return is_prg_ram(address) || ROMImage::is_prg_rom(address);
 }
 
 // TODO: I don't know how I should handle CHR-ROM. Something with the PPU?
 
-void NROM::write_byte(Address address, Byte byte)
+void NROM::write_byte_impl(Address address, Byte byte)
 {
-        if (!address_is_writable(address)) {
-                throw InvalidAddress("Can't write to NROM address "s +
-                                     Utils::format_address(address));
-        }
         prg_ram_[address] = byte;
 }
 
-Byte NROM::read_byte(Address address)
-{
-        auto const const_this = this;
-        return const_this->read_byte(address);
-}
-
-Byte NROM::read_byte(Address address) const
+Byte NROM::read_byte_impl(Address address)
 {
         if (is_prg_ram(address))
                 return prg_ram_[address];
-        else if (ROMImage::is_prg_rom(address))
-                return rom_image_.read_prg_rom_byte(address);
-        throw InvalidAddress("Can't read NROM address "s +
-                             Utils::format_address(address));
-}
-
-bool NROM::is_prg_ram(Address address) noexcept
-{
-        return prg_ram_start <= address && address <= prg_ram_end;
+        return rom_image_.read_prg_rom_byte(address);
 }
 
 }

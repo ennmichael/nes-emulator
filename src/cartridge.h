@@ -29,13 +29,6 @@ enum class Mirroring {
         four_screen
 };
 
-// Is there a better solution here, to using ROMImage and Cartridge and do I need one?
-// Here's an idea: Header class and PRGROM : public ReadableMemory class.
-// Then, Cartridge owns a PRGROM.
-// Take the ROM image data, and create these two classes.
-// Save these in a struct ROMImage?
-// I don't like this, it seems too complicated, just use this
-
 class ROMImage {
 public: 
         static unsigned constexpr header_size = 0x10;static Address constexpr prg_rom_bank_size = 0x4000;
@@ -84,12 +77,11 @@ public:
 
         explicit NROM(ROMImage rom_image);
 
-        bool address_is_writable(Address address) const noexcept override;
-        bool address_is_readable(Address address) const noexcept override;
-
-        void write_byte(Address address, Byte byte) override;
-        Byte read_byte(Address address) override;
-        Byte read_byte(Address address) const;
+protected:
+        bool address_is_writable_impl(Address address) const noexcept override;
+        bool address_is_readable_impl(Address address) const noexcept override;
+        void write_byte_impl(Address address, Byte byte) override;
+        Byte read_byte_impl(Address address) override;
 
 private:
         static bool is_prg_ram(Address address) noexcept;

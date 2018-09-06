@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.h"
+#include <cassert>
 #include <array>
 #include <utility>
 #include <vector>
@@ -16,7 +17,7 @@ public:
         explicit UnknownOpcode(Byte opcode) noexcept;
 };
 
-class CPU : ReadableMemory {
+class CPU : public ReadableMemory {
 public:
         class RAM : public Memory {
         public:
@@ -25,11 +26,12 @@ public:
                 static Address constexpr real_size = 0x0800;
 
                 static bool address_is_accessible(Address addres) noexcept;
-                bool address_is_writable(Address address) const noexcept override;
-                bool address_is_readable(Address address) const noexcept override;
 
-                void write_byte(Address address, Byte byte) override;
-                Byte read_byte(Address address) override;
+        protected:
+                bool address_is_writable_impl(Address address) const noexcept override;
+                bool address_is_readable_impl(Address address) const noexcept override;
+                void write_byte_impl(Address address, Byte byte) override;
+                Byte read_byte_impl(Address address) override;
 
         private:
                 Address apply_mirroring(Address address) const noexcept;
@@ -40,24 +42,24 @@ public:
         class AccessibleMemory : public Memory {
         public:
                 using Pieces = std::vector<Memory*>;
-
                 explicit AccessibleMemory(Pieces pieces) noexcept;
-                bool address_is_writable(Address address) const noexcept override;
-                bool address_is_readable(Address address) const noexcept override;
-                void write_byte(Address address, Byte byte) override;
-                Byte read_byte(Address address) override;
+
+        protected:
+                bool address_is_writable_impl(Address address) const noexcept override;
+                bool address_is_readable_impl(Address address) const noexcept override;
+                void write_byte_impl(Address address, Byte byte) override;
+                Byte read_byte_impl(Address address) override;
 
         private:
                 Memory& find_writable_piece(Address address);
                 Memory& find_readable_piece(Address address);
 
-                template <class P, class E>
-                Memory& find_piece(P const& p, E const& e)
+                template <class P>
+                Memory& find_piece(P const& p)
                 {
                         auto const i = std::find_if(pieces_.cbegin(),
                                                     pieces_.cend(), p);
-                        if (i == pieces_.cend())
-                                throw InvalidAddress(e());
+                        assert(i != pieces_.cend());
                         return **i;
                 }
 
@@ -97,8 +99,10 @@ public:
         Byte p() const noexcept;
         void execute_instruction();
         void hardware_interrupt(Interrupt interrupt);
-        bool address_is_readable(Address address) const noexcept override;
-        Byte read_byte(Address address) override;
+
+protected:
+        bool address_is_readable_impl(Address address) const noexcept override;
+        Byte read_byte_impl(Address address) override;
 
 private:
         struct Impl;

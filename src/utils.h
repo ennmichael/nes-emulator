@@ -12,6 +12,8 @@
 #include <type_traits>
 #include <array>
 #include <memory>
+#include <iomanip>
+#include <sstream>
 
 namespace Emulator {
 
@@ -53,9 +55,14 @@ Byte decode(int value) noexcept;
 
 }
 
-class InvalidAddress : public std::runtime_error {
+class InvalidWrite : public std::runtime_error {
 public:
-        using runtime_error::runtime_error;
+        explicit InvalidWrite(Address address) noexcept;
+};
+
+class InvalidRead : public std::runtime_error {
+public:
+        explicit InvalidRead(Address address) noexcept;
 };
 
 class ReadableMemory {
@@ -67,18 +74,24 @@ public:
         ReadableMemory& operator=(ReadableMemory&&) = delete;
         virtual ~ReadableMemory() = default;
 
-        virtual bool address_is_readable(Address address) const noexcept = 0;
-        virtual Byte read_byte(Address address) = 0;
+        bool address_is_readable(Address address) const noexcept;
+        Byte read_byte(Address address);
         Address read_pointer(Address address);
-        Address deref_pointer(Address address);
-        Byte deref_byte(Address address);
+
+protected:
+        virtual bool address_is_readable_impl(Address address) const noexcept = 0;
+        virtual Byte read_byte_impl(Address address) = 0;
 };
 
 class Memory : public ReadableMemory {
 public:
-        virtual bool address_is_writable(Address address) const noexcept = 0;
-        virtual void write_byte(Address address, Byte byte) = 0;
+        bool address_is_writable(Address address) const noexcept;
+        void write_byte(Address address, Byte byte);
         void write_pointer(Address address, Address pointer);
+
+protected:
+        virtual bool address_is_writable_impl(Address address) const noexcept = 0;
+        virtual void write_byte_impl(Address, Byte byte) = 0;
 };
 
 namespace Utils {
@@ -88,8 +101,17 @@ public:
         explicit CantOpenFile(std::string const& path);
 };
 
-std::string format_hex(unsigned value, int width);
-std::string format_address(Address address);
+template <class T>
+std::string format_hex(T value, int width = sizeof(T)*2)
+{
+        std::stringstream ss;
+        ss << "0x"
+           << std::setfill('0')
+           << std::setw(width)
+           << std::hex
+           << value;
+        return ss.str();
+}
 
 std::vector<Byte> read_bytes(std::string const& path);
 std::vector<Byte> read_bytes(std::ifstream& ifstream);

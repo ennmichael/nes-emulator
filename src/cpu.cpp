@@ -13,6 +13,11 @@ namespace {
 
 using Instruction = std::function<void()>;
 
+Address deref_pointer(ReadableMemory& memory, Address address)
+{
+        return memory.read_pointer(memory.read_pointer(address));
+}
+
 }
 
 UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
@@ -24,43 +29,23 @@ bool CPU::RAM::address_is_accessible(Address address) noexcept
         return start <= address && address <= end;
 }
 
-bool CPU::RAM::address_is_writable(Address address) const noexcept
+bool CPU::RAM::address_is_writable_impl(Address address) const noexcept
 {
         return address_is_accessible(address);
 }
 
-bool CPU::RAM::address_is_readable(Address address) const noexcept
+bool CPU::RAM::address_is_readable_impl(Address address) const noexcept
 {
         return address_is_accessible(address);
 }
 
-void CPU::RAM::write_byte(Address address, Byte byte)
+void CPU::RAM::write_byte_impl(Address address, Byte byte)
 {
-        if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't write to CPU RAM at address "s +
-                                     Utils::format_address(address) +
-                                     ". Valid range is "s +
-                                     Utils::format_address(start) +
-                                     " to "s +
-                                     Utils::format_address(end) +
-                                     "."s);
-        }
-
         ram_[apply_mirroring(address)] = byte;
 }
 
-Byte CPU::RAM::read_byte(Address address)
+Byte CPU::RAM::read_byte_impl(Address address)
 {
-        if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't read CPU RAM at address "s +
-                                     Utils::format_address(address) +
-                                     ". Valid range is "s +
-                                     Utils::format_address(start) +
-                                     " to "s +
-                                     Utils::format_address(end) +
-                                     "."s);
-        }
-
         return ram_[apply_mirroring(address)];
 }
 
@@ -73,26 +58,26 @@ CPU::AccessibleMemory::AccessibleMemory(Pieces pieces) noexcept
         : pieces_(std::move(pieces))
 {}
 
-bool CPU::AccessibleMemory::address_is_writable(Address address) const noexcept
+bool CPU::AccessibleMemory::address_is_writable_impl(Address address) const noexcept
 {
         return std::any_of(pieces_.cbegin(), pieces_.cend(),
                            [&](Memory* piece)
                            { return piece->address_is_writable(address); });
 }
 
-bool CPU::AccessibleMemory::address_is_readable(Address address) const noexcept
+bool CPU::AccessibleMemory::address_is_readable_impl(Address address) const noexcept
 {
         return std::any_of(pieces_.cbegin(), pieces_.cend(),
                            [&](Memory* piece)
                            { return piece->address_is_readable(address); });
 }
 
-void CPU::AccessibleMemory::write_byte(Address address, Byte byte)
+void CPU::AccessibleMemory::write_byte_impl(Address address, Byte byte)
 {
         find_writable_piece(address).write_byte(address, byte);
 }
 
-Byte CPU::AccessibleMemory::read_byte(Address address)
+Byte CPU::AccessibleMemory::read_byte_impl(Address address)
 {
         return find_readable_piece(address).read_byte(address);
 }
@@ -100,23 +85,13 @@ Byte CPU::AccessibleMemory::read_byte(Address address)
 Memory& CPU::AccessibleMemory::find_writable_piece(Address address)
 {
         return find_piece([&](Memory* piece)
-                          { return piece->address_is_writable(address); },
-                          [&]
-                          {
-                                  return "CPU can't write to address "s +
-                                         Utils::format_address(address) + "."s;
-                          });
+                          { return piece->address_is_writable(address); });
 }
 
 Memory& CPU::AccessibleMemory::find_readable_piece(Address address)
 {
         return find_piece([&](Memory* piece)
-                          { return piece->address_is_readable(address); },
-                          [&]
-                          {
-                                  return "CPU can't read address "s +
-                                         Utils::format_address(address) + "."s;
-                          });
+                          { return piece->address_is_readable(address); });
 }
 
 struct CPU::Impl {
@@ -254,7 +229,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        Address const address = memory->deref_pointer(pc);
+                        Address const address = deref_pointer(*memory, pc);
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -539,7 +514,7 @@ struct CPU::Impl {
 
         void indirect_jmp() noexcept
         {
-                pc = memory->deref_pointer(pc + 1);
+                pc = deref_pointer(*memory, pc + 1);
         }
 
         void absolute_jsr() noexcept
@@ -955,12 +930,12 @@ void CPU::hardware_interrupt(Interrupt interrupt)
         impl_->load_interrupt_handler(interrupt);
 }
 
-bool CPU::address_is_readable(Address address) const noexcept
+bool CPU::address_is_readable_impl(Address address) const noexcept
 {
         return impl_->memory->address_is_readable(address);
 }
 
-Byte CPU::read_byte(Address address)
+Byte CPU::read_byte_impl(Address address)
 {
         return impl_->memory->read_byte(address);
 }

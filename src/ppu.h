@@ -6,8 +6,6 @@ namespace Emulator {
 
 class VRAM : public Memory {
 public:
-        static auto constexpr size = 0x10000;
-
         static Address constexpr pattern_tables_start = 0x0000;
         static Address constexpr pattern_tables_end = 0x1FFF;
         static Address constexpr pattern_table_size = 0x1000;
@@ -30,15 +28,12 @@ public:
         static Address constexpr palettes_end = 0x3FFF;
         static Address constexpr palettes_size = palettes_end + 1 - palettes_start;
 
-        static bool address_is_accessible(Address address) noexcept;
-        bool address_is_writable(Address address) const noexcept override;
-        bool address_is_readable(Address address) const noexcept override;
-
-        void write_byte(Address address, Byte byte) override;
-        Byte read_byte(Address address) override;
-        Byte read_byte(Address address) const;
-
 private:
+        bool address_is_writable_impl(Address address) const noexcept override;
+        bool address_is_readable_impl(Address address) const noexcept override;
+        void write_byte_impl(Address address, Byte byte) override;
+        Byte read_byte_impl(Address address) override;
+
         template <class Self>
         static auto& destination(Self& self, Address address) noexcept
         {
@@ -119,12 +114,6 @@ public:
         void vblank_started();
         void vblank_finished();
 
-        bool address_is_writable(Address address) const noexcept override;
-        bool address_is_readable(Address address) const noexcept override;
-
-        void write_byte(Address address, Byte byte);
-        Byte read_byte(Address address);
-
         Address base_name_table_address() const noexcept;
         Address address_increment_offset() const noexcept;
         Address sprite_pattern_table_address() const noexcept;
@@ -137,32 +126,32 @@ public:
         bool show_background() const noexcept;
         bool show_sprites() const noexcept;
 
-        Screen screen() const;
+        Screen screen();
+
+protected:
+        bool address_is_writable_impl(Address address) const noexcept override;
+        bool address_is_readable_impl(Address address) const noexcept override;
+        void write_byte_impl(Address address, Byte byte) override;
+        Byte read_byte_impl(Address address) override;
         
 private:
-        [[noreturn]] static void throw_not_writable(std::string const& register_name,
-                                                    Address address);
-        [[noreturn]] static void throw_not_readable(std::string const& register_name,
-                                                    Address address);
-        [[noreturn]] static void throw_not_valid(Address address);
-
-        void paint_background(Screen& screen) const noexcept;
+        void paint_background(Screen& screen) noexcept;
         void paint_background_square(Screen& screen,
                                      unsigned square_x,
-                                     unsigned square_y) const noexcept;
+                                     unsigned square_y) noexcept;
         void paint_background_tile(Screen& screen,
                                    unsigned tile_x,
                                    unsigned tile_y,
-                                   std::bitset<2> low_color_bits) const noexcept;
+                                   std::bitset<2> low_color_bits) noexcept;
         void paint_background_tile_row(Screen& screen,
                                        Byte tile_index,
                                        unsigned tile_x,
                                        unsigned tile_y,
                                        unsigned row_num,
-                                       std::bitset<2> low_color_bits) const noexcept;
+                                       std::bitset<2> low_color_bits) noexcept;
 
-        Byte background_color(unsigned palette_index) const noexcept;
-        Byte sprite_color(unsigned palette_index) const noexcept;
+        Byte background_color(unsigned palette_index) noexcept;
+        Byte sprite_color(unsigned palette_index) noexcept;
 
         void increment_oam_address() noexcept;
         void increment_vram_address() noexcept;

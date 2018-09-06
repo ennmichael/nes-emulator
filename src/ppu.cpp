@@ -1,48 +1,28 @@
+#include <cassert>
 #include "ppu.h"
 
 using namespace std::string_literals;
 
 namespace Emulator {
 
-bool VRAM::address_is_accessible(Address address) noexcept
+bool VRAM::address_is_writable_impl(Address address) const noexcept
 {
-        return address < size;
+        return true;
 }
 
-bool VRAM::address_is_writable(Address address) const noexcept
+bool VRAM::address_is_readable_impl(Address address) const noexcept
 {
-        return address_is_accessible(address);
+        return true;
 }
 
-bool VRAM::address_is_readable(Address address) const noexcept
+void VRAM::write_byte_impl(Address address, Byte byte)
 {
-        return address_is_accessible(address);
-}
-
-void VRAM::write_byte(Address address, Byte byte)
-{
-        if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't write to VRAM address "s +
-                                     Utils::format_address(address));
-        }
-
         destination(*this, address) = byte;
 }
 
-Byte VRAM::read_byte(Address address) const
+Byte VRAM::read_byte_impl(Address address)
 {
-        if (!address_is_accessible(address)) {
-                throw InvalidAddress("Can't read VRAM address "s +
-                                     Utils::format_address(address));
-        }
-
         return destination(*this, address);
-}
-
-Byte VRAM::read_byte(Address address)
-{
-        auto const const_this = this;
-        return const_this->read_byte(address);
 }
 
 auto Sprite::priority() const noexcept -> Priority
@@ -118,133 +98,6 @@ void PPU::vblank_started()
 void PPU::vblank_finished()
 {}
 
-bool PPU::address_is_writable(Address address) const noexcept
-{
-        return address == control_register ||
-               address == mask_register ||
-               address == oam_address_register ||
-               address == oam_data_register ||
-               address == scroll_register ||
-               address == vram_address_register ||
-               address == vram_data_register ||
-               address == oam_dma_register;
-}
-
-bool PPU::address_is_readable(Address address) const noexcept
-{
-        return address == status_register ||
-               address == oam_data_register ||
-               address == vram_data_register;
-}
-
-void PPU::write_byte(Address address, Byte byte)
-{
-        switch (address) {
-                case control_register:
-                        control_ = byte;
-                        break;
-
-                case mask_register:
-                        mask_ = byte;
-                        break;
-
-                case oam_address_register:
-                        oam_address_ = byte;
-                        break;
-
-                case oam_data_register:
-                        oam_[oam_address_] = byte;
-                        break;
-
-                case scroll_register:
-                        scroll_.write_byte(byte);
-                        break;
-
-                case vram_address_register:
-                        vram_address_.write_byte(byte);
-                        break;
-
-                case vram_data_register:
-                        vram_.write_byte(vram_address_.read_address(), byte);
-                        break;
-
-                case oam_dma_register:
-                        execute_dma(byte);
-                        break;
-
-                case status_register:
-                        throw_not_readable("status"s, status_register);
-
-                default:
-                        throw_not_valid(address);
-        }
-}
-
-Byte PPU::read_byte(Address address)
-{
-        switch (address) {
-                case control_register:
-                        throw_not_readable("control"s, control_register);
-
-                case mask_register:
-                        throw_not_readable("mask"s, mask_register);
-
-                case status_register:
-                        return status_.to_ulong();
-
-                case oam_address_register:
-                        throw_not_readable("OAM address"s, oam_address_register);
-
-                case oam_data_register:
-                        {
-                                Byte const result = oam_[oam_address_];
-                                increment_oam_address();
-                                return result;
-                        }
-
-                case scroll_register:
-                        throw_not_readable("scroll"s, scroll_register);
-
-                case vram_address_register:
-                        throw_not_readable("VRAM address"s, vram_address_register);
-
-                case vram_data_register:
-                        {
-                                Byte const result = vram_data_buffer_;
-                                vram_data_buffer_ =
-                                        vram_.read_byte(vram_address_.read_address());
-                                increment_vram_address();
-                                return result;
-                        }
-
-                case oam_dma_register:
-                        throw_not_readable("OAM DMA"s, oam_dma_register);
-
-                default:
-                        throw_not_valid(address);
-        }
-}
-
-void PPU::throw_not_writable(std::string const& register_name,
-                             Address address)
-{
-        throw InvalidAddress("PPU "s + register_name + " register ("s +
-                             Utils::format_address(address) + ") is not writable."s);
-}
-
-void PPU::throw_not_readable(std::string const& register_name,
-                             Address address)
-{
-        throw InvalidAddress("PPU "s + register_name + " register ("s +
-                             Utils::format_address(address) + ") is not readable."s);
-}
-
-void PPU::throw_not_valid(Address address)
-{
-        throw InvalidAddress(Utils::format_address(address) +
-                             " is not a valid PPU memory address."s);
-}
-
 Address PPU::base_name_table_address() const noexcept
 {
         Address const mult = control_.to_ulong() & 0xC0u;
@@ -303,7 +156,7 @@ bool PPU::show_sprites() const noexcept
         return mask_.test(4);
 }
 
-Screen PPU::screen() const
+Screen PPU::screen()
 {
         Screen screen {0};
         if (show_background())
@@ -311,7 +164,91 @@ Screen PPU::screen() const
         return screen;
 }
 
-void PPU::paint_background(Screen& screen) const noexcept
+bool PPU::address_is_writable_impl(Address address) const noexcept
+{
+        return address == control_register ||
+               address == mask_register ||
+               address == oam_address_register ||
+               address == oam_data_register ||
+               address == scroll_register ||
+               address == vram_address_register ||
+               address == vram_data_register ||
+               address == oam_dma_register;
+}
+
+bool PPU::address_is_readable_impl(Address address) const noexcept
+{
+        return address == status_register ||
+               address == oam_data_register ||
+               address == vram_data_register;
+}
+
+void PPU::write_byte_impl(Address address, Byte byte)
+{
+        switch (address) {
+                case control_register:
+                        control_ = byte;
+                        break;
+
+                case mask_register:
+                        mask_ = byte;
+                        break;
+
+                case oam_address_register:
+                        oam_address_ = byte;
+                        break;
+
+                case oam_data_register:
+                        oam_[oam_address_] = byte;
+                        break;
+
+                case scroll_register:
+                        scroll_.write_byte(byte);
+                        break;
+
+                case vram_address_register:
+                        vram_address_.write_byte(byte);
+                        break;
+
+                case vram_data_register:
+                        vram_.write_byte(vram_address_.read_address(), byte);
+                        break;
+
+                default:
+                        assert(false);
+                        break;
+        }
+}
+
+Byte PPU::read_byte_impl(Address address)
+{
+        switch (address) {
+                case status_register:
+                        return status_.to_ulong();
+
+                case oam_data_register:
+                        {
+                                Byte const result = oam_[oam_address_];
+                                increment_oam_address();
+                                return result;
+                        }
+
+                case vram_data_register:
+                        {
+                                Byte const result = vram_data_buffer_;
+                                vram_data_buffer_ =
+                                        vram_.read_byte(vram_address_.read_address());
+                                increment_vram_address();
+                                return result;
+                        }
+
+                default:
+                        assert(false);
+                        return 0;
+        }
+}
+
+void PPU::paint_background(Screen& screen) noexcept
 {
         for (unsigned square_x = 0; square_x < 8; ++square_x) {
                 for (unsigned square_y = 0; square_y < 8; ++square_y) {
@@ -324,15 +261,15 @@ void PPU::paint_background(Screen& screen) const noexcept
 
 void PPU::paint_background_square(Screen& screen,
                                   unsigned square_x,
-                                  unsigned square_y) const noexcept
+                                  unsigned square_y) noexcept
 {
         ByteBitset const attribute = vram_.read_byte(base_name_table_address() +
                                                      VRAM::name_table_size +
-                                                     square_x + square_y * 8u);
+                                                     square_x + square_y * 8);
 
         for (unsigned x = 0; x < background_tiles_per_square; ++x) {
                 for (unsigned y = 0; y < background_tiles_per_square; ++y) {
-                        unsigned const first_color_bit = x / 2u + y / 2u;
+                        unsigned const first_color_bit = x / 2 + y / 2;
                         unsigned const tile_x =
                                 square_x * background_tiles_per_square + x;
                         unsigned const tile_y =
@@ -350,10 +287,10 @@ void PPU::paint_background_square(Screen& screen,
 void PPU::paint_background_tile(Screen& screen,
                                 unsigned tile_x,
                                 unsigned tile_y,
-                                std::bitset<2> low_color_bits) const noexcept
+                                std::bitset<2> low_color_bits) noexcept
 {
         unsigned const tile_index_address = base_name_table_address() +
-                                            tile_x + tile_y * 8u;
+                                            tile_x + tile_y * 8;
         Byte const tile_index = vram_.read_byte(tile_index_address);
         for (unsigned row_num = 0; row_num < background_tile_size; ++row_num) {
                 paint_background_tile_row(screen, tile_index, tile_x, tile_y,
@@ -366,7 +303,7 @@ void PPU::paint_background_tile_row(Screen& screen,
                                     unsigned tile_x,
                                     unsigned tile_y,
                                     unsigned row_num,
-                                    std::bitset<2> low_color_bits) const noexcept
+                                    std::bitset<2> low_color_bits) noexcept
 {
         unsigned const tile_row_address = background_pattern_table_address() +
                                           row_num +
@@ -382,16 +319,16 @@ void PPU::paint_background_tile_row(Screen& screen,
                 palette_index.set(1, second_tile_row.test(pixel_x));
                 palette_index.set(0, first_tile_row.test(pixel_x));
                 Byte const color = background_color(palette_index.to_ulong());
-                screen[tile_x * 8u + pixel_x][tile_y * 8u + row_num] = color;
+                screen[tile_x * 8 + pixel_x][tile_y * 8 + row_num] = color;
         }
 }
 
-Byte PPU::background_color(unsigned palette_index) const noexcept
+Byte PPU::background_color(unsigned palette_index) noexcept
 {
         return vram_.read_byte(VRAM::background_palette_start + palette_index);
 }
 
-Byte PPU::sprite_color(unsigned palette_index) const noexcept
+Byte PPU::sprite_color(unsigned palette_index) noexcept
 {
         return vram_.read_byte(VRAM::background_palette_start + palette_index);
 }

@@ -10,7 +10,6 @@ using namespace std::string_literals;
 
 namespace {
 
-// FIXME Move this function out of here
 void main_loop(Emulator::CPU& cpu, Emulator::PPU& ppu)
 {
         for (;;) {
@@ -19,14 +18,6 @@ void main_loop(Emulator::CPU& cpu, Emulator::PPU& ppu)
 }
 
 }
-
-/**
- * FIXME
- * Throwing specific exceptions from specific (read|write)_byte functions
- * actually doesn't help and may even make the error messages more
- * confusing. These errors should probably be generic, and the interface
- * should probably consist of both (read|write)_byte and (read|write)_byte_safe
- */
 
 int main(int argc, char** argv)
 {

@@ -1,7 +1,6 @@
 #include "utils.h"
 #include "sdl++.h"
 #include <climits>
-#include <iomanip>
 
 using namespace std::string_literals;
 
@@ -27,6 +26,26 @@ Byte decode(int value) noexcept
 
 }
 
+InvalidRead::InvalidRead(Address address) noexcept
+        : runtime_error("Can't read byte at address "s + Utils::format_hex(address))
+{}
+
+InvalidWrite:: InvalidWrite(Address address) noexcept
+        : runtime_error("Can't write byte to address "s + Utils::format_hex(address))
+{}
+
+bool ReadableMemory::address_is_readable(Address address) const noexcept
+{
+        return address_is_readable_impl(address);
+}
+
+Byte ReadableMemory::read_byte(Address address)
+{
+        if (!address_is_readable(address))
+                throw InvalidRead(address);
+        return read_byte_impl(address);
+}
+
 Address ReadableMemory::read_pointer(Address address)
 {
         Byte const low = read_byte(address);
@@ -34,14 +53,16 @@ Address ReadableMemory::read_pointer(Address address)
         return Utils::combine_bytes(low, high);
 }
 
-Byte ReadableMemory::deref_byte(Address address)
+bool Memory::address_is_writable(Address address) const noexcept
 {
-        return read_byte(read_pointer(address));
+        return address_is_writable_impl(address);
 }
 
-Address ReadableMemory::deref_pointer(Address address)
+void Memory::write_byte(Address address, Byte byte)
 {
-        return read_pointer(read_pointer(address));
+        if (!address_is_writable(address))
+                throw InvalidWrite(address);
+        write_byte_impl(address, byte);
 }
 
 void Memory::write_pointer(Address address, Address pointer)
@@ -56,22 +77,6 @@ namespace Utils {
 CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
 {}
-
-std::string format_hex(unsigned value, int width)
-{
-        std::stringstream ss;
-        ss << "0x"
-           << std::setfill('0')
-           << std::setw(width)
-           << std::hex
-           << value;
-        return ss.str();
-}
-
-std::string format_address(Address address)
-{
-        return format_hex(address, 4);
-}
 
 std::vector<Byte> read_bytes(std::string const& path)
 {

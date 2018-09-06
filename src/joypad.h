@@ -4,7 +4,11 @@
 #include "sdl++.h"
 #include <unordered_map>
 
-// TODO Have an Sdl::Keyboard class so I can test this
+/* FIXME
+ * This is a bit bad. We should have a Joypad class which isn't a type of
+ * Memory, and a type of Memory called JoypadMemory which would also (some day?)
+ * handle the second joypad as well. The Address parameter is unused so clearly that is bad.
+ */
 
 namespace Emulator {
 
@@ -21,7 +25,6 @@ enum class JoypadButton {
 
 using KeyBindings = std::unordered_map<JoypadButton, Sdl::Scancode>;
 
-
 class Joypad : public Memory {
 public:
         using Buttons = std::unordered_map<unsigned, bool>;
@@ -33,10 +36,12 @@ public:
         Joypad(Sdl::KeyboardState keyboard_state, KeyBindings key_bindings) noexcept;
        
         void update();
-        bool address_is_writable(Address address) const noexcept override;
-        bool address_is_readable(Address address) const noexcept override;
-        void write_byte(Address address, Byte byte) override;
-        Byte read_byte(Address address) override;
+
+protected:
+        bool address_is_writable_impl(Address address) const noexcept override;
+        bool address_is_readable_impl(Address address) const noexcept override;
+        void write_byte_impl(Address address, Byte byte) override;
+        Byte read_byte_impl(Address address) override;
 
 private:
         bool strobe(Byte byte) const noexcept;

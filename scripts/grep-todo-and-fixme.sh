@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-grep -n TODO src/* tests/*
-grep -n FIXME src/* tests/*
+grep -n TODO src/*.cpp src/*.h tests/*.cpp
+grep -n FIXME src/*.cpp src/*.h tests/*.cpp
 

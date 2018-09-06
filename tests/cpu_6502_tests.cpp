@@ -22,17 +22,18 @@ public:
                 }
         }
 
-        bool address_is_readable(Emulator::Address address) const noexcept override
+private:
+        bool address_is_readable_impl(Emulator::Address address) const noexcept override
         {
                 using CPU = Emulator::CPU;
                 auto const reset_handler_address =
                         CPU::interrupt_handler_address(CPU::Interrupt::reset);
                 return address == reset_handler_address ||
                        address == reset_handler_address + 1 ||
-                       RAM::address_is_readable(address);
+                       RAM::address_is_readable_impl(address);
         }
 
-        Emulator::Byte read_byte(Emulator::Address address) override
+        Emulator::Byte read_byte_impl(Emulator::Address address) override
         {
                 using CPU = Emulator::CPU;
                 auto const reset_handler_address =
@@ -41,12 +42,12 @@ public:
                         return Emulator::Utils::low_byte(program_start);
                 else if (address == reset_handler_address + 1)
                         return Emulator::Utils::high_byte(program_start);
-                return RAM::read_byte(address);
+                return RAM::read_byte_impl(address);
         }
 };
 
 std::unique_ptr<Emulator::CPU> execute_example_program(TestMemory& test_memory,
-                                        std::size_t program_size)
+                                                       std::size_t program_size)
 {
         auto cpu = std::make_unique<Emulator::CPU>(
                 Emulator::CPU::AccessibleMemory::Pieces {&test_memory});

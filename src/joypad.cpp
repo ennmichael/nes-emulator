@@ -12,33 +12,25 @@ Joypad::Joypad(Sdl::KeyboardState keyboard_state, KeyBindings key_bindings) noex
         , key_bindings_(std::move(key_bindings))
 {}
 
-bool Joypad::address_is_writable(Address address) const noexcept
+bool Joypad::address_is_writable_impl(Address address) const noexcept
 {
         return address == first_joypad_address;
 }
 
-bool Joypad::address_is_readable(Address address) const noexcept
+bool Joypad::address_is_readable_impl(Address address) const noexcept
 {
         return address == first_joypad_address;
 }
 
-void Joypad::write_byte(Address address, Byte byte)
+void Joypad::write_byte_impl(Address, Byte byte)
 {
-        if (!address_is_writable(address)) {
-                throw InvalidAddress("Can't write to Joypad address "s +
-                                     Utils::format_address(address));
-        }
         if (strobe(byte))
                 num_reads_ = 0;
         last_write_ = byte;
 }
 
-Byte Joypad::read_byte(Address address)
+Byte Joypad::read_byte_impl(Address)
 {
-        if (!address_is_readable(address)) {
-                throw InvalidAddress("Can't read Joypad address "s +
-                                     Utils::format_address(address));
-        }
         if (num_reads_ == max_reads)
                 num_reads_ = 0;
         bool const result = [&]
