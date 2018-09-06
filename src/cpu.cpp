@@ -9,26 +9,32 @@ using namespace std::string_literals;
 
 namespace Emulator {
 
+namespace {
+
+using Instruction = std::function<void()>;
+
+}
+
 UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
         : runtime_error("Unknown opcode "s + Utils::format_hex(opcode, 2) + "."s)
 {}
 
-bool CPU::RAM::address_is_accessible(unsigned address) noexcept
+bool CPU::RAM::address_is_accessible(Address address) noexcept
 {
-        return start <= address && address < end;
+        return start <= address && address <= end;
 }
 
-bool CPU::RAM::address_is_writable(unsigned address) const noexcept
-{
-        return address_is_accessible(address);
-}
-
-bool CPU::RAM::address_is_readable(unsigned address) const noexcept
+bool CPU::RAM::address_is_writable(Address address) const noexcept
 {
         return address_is_accessible(address);
 }
 
-void CPU::RAM::write_byte(unsigned address, Byte byte)
+bool CPU::RAM::address_is_readable(Address address) const noexcept
+{
+        return address_is_accessible(address);
+}
+
+void CPU::RAM::write_byte(Address address, Byte byte)
 {
         if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't write to CPU RAM at address "s +
@@ -40,10 +46,10 @@ void CPU::RAM::write_byte(unsigned address, Byte byte)
                                      "."s);
         }
 
-        ram_[translate_address(address)] = byte;
+        ram_[apply_mirroring(address)] = byte;
 }
 
-Byte CPU::RAM::read_byte(unsigned address)
+Byte CPU::RAM::read_byte(Address address)
 {
         if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't read CPU RAM at address "s +
@@ -55,10 +61,10 @@ Byte CPU::RAM::read_byte(unsigned address)
                                      "."s);
         }
 
-        return ram_[translate_address(address)];
+        return ram_[apply_mirroring(address)];
 }
 
-unsigned CPU::RAM::translate_address(unsigned address) const noexcept
+Address CPU::RAM::apply_mirroring(Address address) const noexcept
 {
         return address % real_size;
 }
@@ -67,31 +73,31 @@ CPU::AccessibleMemory::AccessibleMemory(Pieces pieces) noexcept
         : pieces_(std::move(pieces))
 {}
 
-bool CPU::AccessibleMemory::address_is_writable(unsigned address) const noexcept
+bool CPU::AccessibleMemory::address_is_writable(Address address) const noexcept
 {
         return std::any_of(pieces_.cbegin(), pieces_.cend(),
                            [&](Memory* piece)
                            { return piece->address_is_writable(address); });
 }
 
-bool CPU::AccessibleMemory::address_is_readable(unsigned address) const noexcept
+bool CPU::AccessibleMemory::address_is_readable(Address address) const noexcept
 {
         return std::any_of(pieces_.cbegin(), pieces_.cend(),
                            [&](Memory* piece)
                            { return piece->address_is_readable(address); });
 }
 
-void CPU::AccessibleMemory::write_byte(unsigned address, Byte byte)
+void CPU::AccessibleMemory::write_byte(Address address, Byte byte)
 {
         find_writable_piece(address).write_byte(address, byte);
 }
 
-Byte CPU::AccessibleMemory::read_byte(unsigned address)
+Byte CPU::AccessibleMemory::read_byte(Address address)
 {
         return find_readable_piece(address).read_byte(address);
 }
 
-Memory& CPU::AccessibleMemory::find_writable_piece(unsigned address)
+Memory& CPU::AccessibleMemory::find_writable_piece(Address address)
 {
         return find_piece([&](Memory* piece)
                           { return piece->address_is_writable(address); },
@@ -102,7 +108,7 @@ Memory& CPU::AccessibleMemory::find_writable_piece(unsigned address)
                           });
 }
 
-Memory& CPU::AccessibleMemory::find_readable_piece(unsigned address)
+Memory& CPU::AccessibleMemory::find_readable_piece(Address address)
 {
         return find_piece([&](Memory* piece)
                           { return piece->address_is_readable(address); },
@@ -124,9 +130,9 @@ struct CPU::Impl {
                 : Impl(std::make_unique<AccessibleMemory>(memory_pieces))
         {}
 
-        unsigned stack_top_address() const noexcept
+        Address stack_top_address() const noexcept
         {
-                return stack_bottom_address + sp;
+                return stack_bottom_address + sp + 1;
         }
 
         Byte stack_top_byte()
@@ -134,7 +140,7 @@ struct CPU::Impl {
                 return memory->read_byte(stack_top_address() + 1);
         }
 
-        unsigned stack_top_pointer()
+        Address stack_top_pointer()
         {
                 return memory->read_pointer(stack_top_address() + 1);
         }
@@ -145,10 +151,10 @@ struct CPU::Impl {
                 sp -= 1;
         }
 
-        void stack_push_pointer(unsigned pointer)
+        void stack_push_pointer(Address pointer)
         {
                 memory->write_pointer(stack_top_address() - 1, pointer);
-                sp -= address_size;
+                sp -= sizeof(Address);
         }
 
         Byte stack_pull_byte()
@@ -158,16 +164,16 @@ struct CPU::Impl {
                 return result;
         }
 
-        unsigned stack_pull_pointer() noexcept
+        Address stack_pull_pointer() noexcept
         {
-                unsigned const result = stack_top_pointer();
-                sp += address_size;
+                Address const result = stack_top_pointer();
+                sp += sizeof(Address);
                 return result;
         }
 
-        unsigned interrupt_handler(Interrupt interrupt) noexcept
+        Address interrupt_handler(Interrupt interrupt) noexcept
         {
-                unsigned const pointer_address = interrupt_handler_address(interrupt);
+                Address const pointer_address = interrupt_handler_address(interrupt);
                 return memory->read_pointer(pointer_address);
         }
 
@@ -189,7 +195,7 @@ struct CPU::Impl {
                 return [this, operation, offset]
                 {
                         auto const base_address = memory->read_byte(pc + 1);
-                        unsigned const address = base_address + offset();
+                        Address const address = base_address + offset();
                         execute_on_memory(operation, address);
                         pc += 2;
                 };
@@ -218,7 +224,7 @@ struct CPU::Impl {
         {
                 return [this, operation, offset]
                 {
-                        unsigned const address =
+                        Address const address =
                                 memory->read_pointer(pc + 1) + offset();
                         execute_on_memory(operation, address);
                         pc += 3;
@@ -248,7 +254,7 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const address = memory->deref_pointer(pc);
+                        Address const address = memory->deref_pointer(pc);
                         execute_on_memory(operation, address);
                         pc += 3;
                 };
@@ -303,8 +309,8 @@ struct CPU::Impl {
         {
                 return [this, operation]
                 {
-                        unsigned const zero_page_address = memory->read_byte(pc + 1);
-                        unsigned const pointer =
+                        Address const zero_page_address = memory->read_byte(pc + 1);
+                        Address const pointer =
                                 memory->read_pointer(zero_page_address + x);
                         execute_on_memory(operation, pointer);
                         pc += 2;
@@ -317,7 +323,7 @@ struct CPU::Impl {
                 return [this, operation]
                 {
                         auto const zero_page_address = memory->read_byte(pc + 1);
-                        unsigned const pointer =
+                        Address const pointer =
                                 memory->read_pointer(zero_page_address) + y;
                         execute_on_memory(operation, pointer);
                         pc += 2;
@@ -325,20 +331,20 @@ struct CPU::Impl {
         }
 
         void execute_on_memory(Byte (Impl::*operation)(),
-                               unsigned address)
+                               Address address)
         {
                 memory->write_byte(address, (this->*operation)());
         }
 
         void execute_on_memory(void (Impl::*operation)(Byte operand),
-                               unsigned address)
+                               Address address)
         {
                 auto const operand = memory->read_byte(address);
                 (this->*operation)(operand);
         }
 
         void execute_on_memory(Byte (Impl::*operation)(Byte operand),
-                               unsigned address)
+                               Address address)
         {
                 auto const operand = memory->read_byte(address);
                 memory->write_byte(address, (this->*operation)(operand));
@@ -596,7 +602,8 @@ struct CPU::Impl {
 
         Byte rol(Byte operand) noexcept
         {
-                Byte const result = [&] {
+                Byte const result =
+                [&] {
                         ByteBitset bits(operand);
                         bits <<= 1;
                         bits.set(0, p.test(carry_flag));
@@ -610,7 +617,8 @@ struct CPU::Impl {
 
         Byte ror(Byte operand) noexcept
         {
-                Byte const result = [&] {
+                Byte const result =
+                [&] {
                         ByteBitset bits(operand);
                         bits >>= 1;
                         bits.set(sign_bit, p.test(carry_flag));
@@ -868,7 +876,7 @@ struct CPU::Impl {
         }
 
         std::unique_ptr<AccessibleMemory> memory;
-        unsigned pc = 0;
+        Address pc = 0;
         Byte sp = byte_max;
         Byte a = 0;
         Byte x = 0;
@@ -882,7 +890,7 @@ CPU::CPU(AccessibleMemory::Pieces pieces)
 
 CPU::~CPU() = default;
 
-unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
+Address CPU::interrupt_handler_address(Interrupt interrupt) noexcept
 {
         switch (interrupt) {
                 case Interrupt::nmi:   return 0xFFFA;
@@ -894,7 +902,7 @@ unsigned CPU::interrupt_handler_address(Interrupt interrupt) noexcept
         return 0; 
 }
 
-unsigned CPU::pc() const noexcept
+Address CPU::pc() const noexcept
 {
         return impl_->pc;
 }
@@ -947,12 +955,12 @@ void CPU::hardware_interrupt(Interrupt interrupt)
         impl_->load_interrupt_handler(interrupt);
 }
 
-bool CPU::address_is_readable(unsigned address) const noexcept
+bool CPU::address_is_readable(Address address) const noexcept
 {
         return impl_->memory->address_is_readable(address);
 }
 
-Byte CPU::read_byte(unsigned address)
+Byte CPU::read_byte(Address address)
 {
         return impl_->memory->read_byte(address);
 }

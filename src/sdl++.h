@@ -2,6 +2,7 @@
 
 #include "SDL2/SDL.h"
 #include <memory>
+#include <unordered_map>
 #include <utility>
 #include <string>
 #include <complex>
@@ -23,7 +24,9 @@ using Window = SDL_Window;
 using Renderer = SDL_Renderer;
 using Rect = SDL_Rect;
 using Event = SDL_Event;
+using KeyboardEvent = SDL_KeyboardEvent;
 using OptionalEvent = std::optional<Event>;
+using KeyboardState = std::uint8_t const*;
 
 Color constexpr black {.r = 0, .g = 0, .b = 0, .a = 255};
 
@@ -34,9 +37,8 @@ enum class Scancode {
         down = SDL_SCANCODE_DOWN,
         a = SDL_SCANCODE_A,
         s = SDL_SCANCODE_S,
-        x = SDL_SCANCODE_X,
-        y = SDL_SCANCODE_Y,
-        z = SDL_SCANCODE_Z
+        enter = SDL_SCANCODE_RETURN,
+        spacebar = SDL_SCANCODE_SPACE
 };
 
 struct WindowDeleter {
@@ -85,7 +87,7 @@ Context create_context(std::string const& title,
                        int width, int height,
                        Color background_color=black);
 
-bool key_is_down(Scancode scancode) noexcept;
+KeyboardState get_keyboard_state() noexcept;
 void set_render_color(Renderer& Renderer, Color color);
 Color get_render_color(Renderer& Renderer);
 void render_clear(Renderer& Renderer);

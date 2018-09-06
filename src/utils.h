@@ -25,11 +25,6 @@ Endianness constexpr endianness {SDL_BYTEORDER};
 static_assert(endianness == Endianness::little, "Not little-endian.");
 
 /**
- * TODO Using unsigned for addresses instead of std::uint_16 is a big mistake.
- * Fix it.
- */
-
-/**
  * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
  * Utils::split_byte and Utils::combine_bytes. The changes should
@@ -40,9 +35,9 @@ template <class T>
 using AutoBitset = std::bitset<sizeof(T) * CHAR_BIT>;
 using SignedByte = std::int8_t;
 using Byte = std::uint8_t;
-using Address = std::uint16_t; // TODO Start using this (???)
+using Address = std::uint16_t;
 using ByteBitset = std::bitset<CHAR_BIT>;
-template <class T, auto W, auto H>
+template <class T, std::size_t W, std::size_t H>
 using Matrix = std::array<std::array<T, W>, H>;
 
 Byte constexpr byte_max = std::numeric_limits<Byte>::max();
@@ -72,30 +67,21 @@ public:
         ReadableMemory& operator=(ReadableMemory&&) = delete;
         virtual ~ReadableMemory() = default;
 
-        virtual bool address_is_readable(unsigned address) const noexcept = 0;
-        virtual Byte read_byte(unsigned address) = 0;
-        unsigned read_pointer(unsigned address);
-        unsigned deref_pointer(unsigned address);
-        Byte deref_byte(unsigned address);
+        virtual bool address_is_readable(Address address) const noexcept = 0;
+        virtual Byte read_byte(Address address) = 0;
+        Address read_pointer(Address address);
+        Address deref_pointer(Address address);
+        Byte deref_byte(Address address);
 };
 
 class Memory : public ReadableMemory {
 public:
-        virtual bool address_is_writable(unsigned address) const noexcept = 0;
-        virtual void write_byte(unsigned address, Byte byte) = 0;
-        void write_pointer(unsigned address, unsigned pointer);
-        // TODO instead of doing checks in read_memory and write_memory,
-        // how about read_memory_safe and write_memory_safe member functions?
+        virtual bool address_is_writable(Address address) const noexcept = 0;
+        virtual void write_byte(Address address, Byte byte) = 0;
+        void write_pointer(Address address, Address pointer);
 };
 
-using UniqueReadableMemory = std::unique_ptr<ReadableMemory>;
-using UniqueMemory = std::unique_ptr<Memory>;
-
 namespace Utils {
-
-template <class F, class... Args>
-bool constexpr returns_void =
-        std::is_same_v<std::invoke_result_t<F, Args...>, void>;
 
 class CantOpenFile : public std::runtime_error {
 public:
@@ -103,7 +89,7 @@ public:
 };
 
 std::string format_hex(unsigned value, int width);
-std::string format_address(unsigned address);
+std::string format_address(Address address);
 
 std::vector<Byte> read_bytes(std::string const& path);
 std::vector<Byte> read_bytes(std::ifstream& ifstream);
@@ -129,11 +115,11 @@ struct BytePair {
         Byte high;
 };
 
-Byte low_byte(unsigned two_bytes) noexcept;
-Byte high_byte(unsigned two_bytes) noexcept;
-BytePair split_bytes(unsigned two_bytes) noexcept;
-unsigned combine_bytes(Byte low, Byte high) noexcept;
-unsigned combine_bytes(BytePair byte_pair) noexcept;
+Byte low_byte(Address address) noexcept;
+Byte high_byte(Address address) noexcept;
+BytePair split_bytes(Address address) noexcept;
+Address combine_bytes(Byte low, Byte high) noexcept;
+Address combine_bytes(BytePair byte_pair) noexcept;
 
 }
 

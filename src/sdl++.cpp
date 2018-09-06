@@ -86,10 +86,9 @@ Context create_context(std::string const& title,
         };
 }
 
-bool key_is_down(Scancode scancode) noexcept
+KeyboardState get_keyboard_state() noexcept
 {
-        auto const state = SDL_GetKeyboardState(nullptr);
-        return state[static_cast<std::size_t>(scancode)];
+        return SDL_GetKeyboardState(nullptr);
 }
 
 void set_render_color(Renderer& renderer, Color color)

@@ -4,22 +4,22 @@ using namespace std::string_literals;
 
 namespace Emulator {
 
-bool VRAM::address_is_accessible(unsigned address) noexcept
+bool VRAM::address_is_accessible(Address address) noexcept
 {
         return address < size;
 }
 
-bool VRAM::address_is_writable(unsigned address) const noexcept
+bool VRAM::address_is_writable(Address address) const noexcept
 {
         return address_is_accessible(address);
 }
 
-bool VRAM::address_is_readable(unsigned address) const noexcept
+bool VRAM::address_is_readable(Address address) const noexcept
 {
         return address_is_accessible(address);
 }
 
-void VRAM::write_byte(unsigned address, Byte byte)
+void VRAM::write_byte(Address address, Byte byte)
 {
         if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't write to VRAM address "s +
@@ -29,7 +29,7 @@ void VRAM::write_byte(unsigned address, Byte byte)
         destination(*this, address) = byte;
 }
 
-Byte VRAM::read_byte(unsigned address) const
+Byte VRAM::read_byte(Address address) const
 {
         if (!address_is_accessible(address)) {
                 throw InvalidAddress("Can't read VRAM address "s +
@@ -39,7 +39,7 @@ Byte VRAM::read_byte(unsigned address) const
         return destination(*this, address);
 }
 
-Byte VRAM::read_byte(unsigned address)
+Byte VRAM::read_byte(Address address)
 {
         auto const const_this = this;
         return const_this->read_byte(address);
@@ -69,26 +69,26 @@ std::bitset<2> Sprite::color_bits() const noexcept
         return result;
 }
 
-void DoubleWriteRegister::write_half(Byte byte) noexcept
+void DoubleWriteRegister::write_byte(Byte byte) noexcept
 {
         if (complete_)
                 value_ = byte;
         else
-                value_ |= static_cast<unsigned>(byte) << CHAR_BIT;
+                value_ |= static_cast<Address>(byte) << CHAR_BIT;
         complete_ = !complete_;
 }
 
-void DoubleWriteRegister::write_whole(unsigned value) noexcept
+void DoubleWriteRegister::write_address(Address value) noexcept
 {
         value_ = value;
 }
 
-void DoubleWriteRegister::increment(unsigned offset) noexcept
+void DoubleWriteRegister::increment(Address offset) noexcept
 {
         value_ += offset;
 }
 
-unsigned DoubleWriteRegister::read_whole() const noexcept
+Address DoubleWriteRegister::read_address() const noexcept
 {
         return value_;
 }
@@ -118,7 +118,7 @@ void PPU::vblank_started()
 void PPU::vblank_finished()
 {}
 
-bool PPU::address_is_writable(unsigned address) const noexcept
+bool PPU::address_is_writable(Address address) const noexcept
 {
         return address == control_register ||
                address == mask_register ||
@@ -130,14 +130,14 @@ bool PPU::address_is_writable(unsigned address) const noexcept
                address == oam_dma_register;
 }
 
-bool PPU::address_is_readable(unsigned address) const noexcept
+bool PPU::address_is_readable(Address address) const noexcept
 {
         return address == status_register ||
                address == oam_data_register ||
                address == vram_data_register;
 }
 
-void PPU::write_byte(unsigned address, Byte byte)
+void PPU::write_byte(Address address, Byte byte)
 {
         switch (address) {
                 case control_register:
@@ -157,15 +157,15 @@ void PPU::write_byte(unsigned address, Byte byte)
                         break;
 
                 case scroll_register:
-                        scroll_.write_half(byte);
+                        scroll_.write_byte(byte);
                         break;
 
                 case vram_address_register:
-                        vram_address_.write_half(byte);
+                        vram_address_.write_byte(byte);
                         break;
 
                 case vram_data_register:
-                        vram_.write_byte(vram_address_.read_whole(), byte);
+                        vram_.write_byte(vram_address_.read_address(), byte);
                         break;
 
                 case oam_dma_register:
@@ -180,7 +180,7 @@ void PPU::write_byte(unsigned address, Byte byte)
         }
 }
 
-Byte PPU::read_byte(unsigned address)
+Byte PPU::read_byte(Address address)
 {
         switch (address) {
                 case control_register:
@@ -212,7 +212,7 @@ Byte PPU::read_byte(unsigned address)
                         {
                                 Byte const result = vram_data_buffer_;
                                 vram_data_buffer_ =
-                                        vram_.read_byte(vram_address_.read_whole());
+                                        vram_.read_byte(vram_address_.read_address());
                                 increment_vram_address();
                                 return result;
                         }
@@ -226,44 +226,44 @@ Byte PPU::read_byte(unsigned address)
 }
 
 void PPU::throw_not_writable(std::string const& register_name,
-                             unsigned address)
+                             Address address)
 {
         throw InvalidAddress("PPU "s + register_name + " register ("s +
                              Utils::format_address(address) + ") is not writable."s);
 }
 
 void PPU::throw_not_readable(std::string const& register_name,
-                             unsigned address)
+                             Address address)
 {
         throw InvalidAddress("PPU "s + register_name + " register ("s +
                              Utils::format_address(address) + ") is not readable."s);
 }
 
-void PPU::throw_not_valid(unsigned address)
+void PPU::throw_not_valid(Address address)
 {
         throw InvalidAddress(Utils::format_address(address) +
                              " is not a valid PPU memory address."s);
 }
 
-unsigned PPU::base_name_table_address() const noexcept
+Address PPU::base_name_table_address() const noexcept
 {
-        unsigned const mult = control_.to_ulong() & 0xC0u;
-        unsigned const offset =
+        Address const mult = control_.to_ulong() & 0xC0u;
+        Address const offset =
                 mult * (VRAM::name_table_size + VRAM::attribute_table_size);
         return VRAM::name_tables_start + offset;
 }
 
-unsigned PPU::address_increment_offset() const noexcept
+Address PPU::address_increment_offset() const noexcept
 {
         return (control_.test(2)) ? 0x0020u : 0x0000u;
 }
 
-unsigned PPU::sprite_pattern_table_address() const noexcept
+Address PPU::sprite_pattern_table_address() const noexcept
 {
         return (control_.test(3)) ? VRAM::pattern_table_size : 0u;
 }
 
-unsigned PPU::background_pattern_table_address() const noexcept
+Address PPU::background_pattern_table_address() const noexcept
 {
         return (control_.test(4)) ? VRAM::pattern_table_size : 0u;
 }
@@ -408,9 +408,9 @@ void PPU::increment_vram_address() noexcept
 
 void PPU::execute_dma(Byte source)
 {
-        for (unsigned i = oam_address_; i < oam_address_ + oam_size; ++i) {
-                unsigned const j = i % byte_max;
-                unsigned const source_address = source * oam_size + j;
+        for (Address i = oam_address_; i < static_cast<Address>(oam_address_) + oam_size; ++i) {
+                Address const j = i % byte_max;
+                Address const source_address = source * oam_size + j;
                 oam_[j] = dma_memory_.read_byte(source_address);
         }
 }

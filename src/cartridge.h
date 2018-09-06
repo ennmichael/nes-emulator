@@ -29,20 +29,26 @@ enum class Mirroring {
         four_screen
 };
 
-class Cartridge;
+// Is there a better solution here, to using ROMImage and Cartridge and do I need one?
+// Here's an idea: Header class and PRGROM : public ReadableMemory class.
+// Then, Cartridge owns a PRGROM.
+// Take the ROM image data, and create these two classes.
+// Save these in a struct ROMImage?
+// I don't like this, it seems too complicated, just use this
 
-using UniqueCartridge = std::unique_ptr<Cartridge>;
+class ROMImage {
+public: 
+        static unsigned constexpr header_size = 0x10;static Address constexpr prg_rom_bank_size = 0x4000;
 
-// FIXME
-// This doesn't need to be a class
-// A namespace would do
-struct NESFile {
-        static unsigned constexpr header_size = 0x10;
-        static unsigned constexpr prg_rom_start = header_size;
+        static Address constexpr prg_rom_lower_bank_start = 0x8000;
+        static Address constexpr prg_rom_lower_bank_end = prg_rom_lower_bank_start + prg_rom_bank_size - 1;
+        static Address constexpr prg_rom_upper_bank_start = prg_rom_lower_bank_end;
+        static Address constexpr prg_rom_upper_bank_end = prg_rom_upper_bank_start + prg_rom_bank_size - 1;
 
-        explicit NESFile(std::string const& path);
-        explicit NESFile(std::vector<Byte> new_data);
+        explicit ROMImage(std::string const& path);
+        explicit ROMImage(std::vector<Byte> new_data);
 
+        static bool is_prg_rom(Address address) noexcept;
         Byte num_prg_rom_banks() const noexcept;
         Byte num_chr_rom_banks() const noexcept;
         Byte mmc_id() const noexcept;
@@ -50,51 +56,46 @@ struct NESFile {
         bool has_trainer() const noexcept;
         Mirroring mirroring() const noexcept;
         bool has_chr_ram() const noexcept;
-
         ByteBitset first_control_byte() const noexcept;
         ByteBitset second_control_byte() const noexcept;
-        
-        std::vector<Byte> data;
+        Byte read_prg_rom_byte(Address address) const;
 
 private:
+        std::vector<Byte> data_;
+
+        Address apply_mirroring(Address address) const noexcept;
         void check_data_size() const;
         void check_header_footprint() const;
 };
 
 class Cartridge : public Memory {
 public:
-        static unsigned constexpr prg_ram_start = 0x6000;
-        static unsigned constexpr prg_ram_bank_size = 0x2000;
-        static unsigned constexpr prg_ram_end = prg_ram_start + prg_ram_bank_size;
+        static Address constexpr prg_ram_start = 0x6000;
+        static Address constexpr prg_ram_bank_size = 0x2000;
+        static Address constexpr prg_ram_end = prg_ram_start + prg_ram_bank_size - 1; 
 
-        static unsigned constexpr prg_rom_bank_size = 0x4000;
-        static unsigned constexpr prg_rom_lower_bank_start = 0x8000;
-        static unsigned constexpr prg_rom_lower_bank_end = 
-                prg_rom_lower_bank_start + prg_rom_bank_size;
-        static unsigned constexpr prg_rom_upper_bank_start = prg_rom_lower_bank_end;
-        static unsigned constexpr prg_rom_upper_bank_end =
-                prg_rom_upper_bank_start + prg_rom_bank_size;
-
-        static UniqueCartridge make(std::string const& path);
-        static UniqueCartridge make(NESFile nes_file);
+        static std::unique_ptr<Cartridge> make(std::string const& path);
+        static std::unique_ptr<Cartridge> make(ROMImage rom_image);
 };
 
 class NROM : public Cartridge {
 public:
         static Byte constexpr id = 0;
 
-        explicit NROM(NESFile nes_file);
+        explicit NROM(ROMImage rom_image);
 
-        bool address_is_writable(unsigned address) const noexcept override;
-        bool address_is_readable(unsigned address) const noexcept override;
+        bool address_is_writable(Address address) const noexcept override;
+        bool address_is_readable(Address address) const noexcept override;
 
-        void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) override;
-        Byte read_byte(unsigned address) const;
+        void write_byte(Address address, Byte byte) override;
+        Byte read_byte(Address address) override;
+        Byte read_byte(Address address) const;
 
 private:
-        NESFile nes_file_;
-        std::array<Byte,0x2000> prg_ram_ {0};
+        static bool is_prg_ram(Address address) noexcept;
+
+        ROMImage rom_image_;
+        std::array<Byte, 0x2000> prg_ram_ {0};
 };
 
 class MMC1 : public Cartridge {

@@ -6,56 +6,50 @@ namespace Emulator {
 
 class VRAM : public Memory {
 public:
-        static unsigned constexpr size = 0x10000;
+        static auto constexpr size = 0x10000;
 
-        static unsigned constexpr pattern_tables_start = 0x0000;
-        static unsigned constexpr pattern_tables_end = 0x2000;
-        static unsigned constexpr pattern_table_size = 0x1000;
-        static unsigned constexpr pattern_tables_size =
-                pattern_tables_end - pattern_tables_start;
+        static Address constexpr pattern_tables_start = 0x0000;
+        static Address constexpr pattern_tables_end = 0x1FFF;
+        static Address constexpr pattern_table_size = 0x1000;
+        static Address constexpr pattern_tables_size = pattern_tables_end + 1 - pattern_tables_start;
 
-        static unsigned constexpr name_table_size = 0x03C0;
-        static unsigned constexpr attribute_table_size = 0x0040;
-        static unsigned constexpr name_tables_start = pattern_tables_end;
-        static unsigned constexpr name_tables_end = 0x3F00;
-        static unsigned constexpr name_tables_size =
-                name_tables_end - name_tables_start;
-        static unsigned constexpr name_tables_real_size =
-                0x3000u - name_tables_start;
+        static Address constexpr name_table_size = 0x03C0;
+        static Address constexpr attribute_table_size = 0x0040;
+        static Address constexpr name_tables_start = pattern_tables_end + 1;
+        static Address constexpr name_tables_end = 0x3EFF;
+        static Address constexpr name_tables_size = name_tables_end + 1 - name_tables_start;
+        static Address constexpr name_tables_real_size = 0x3000 - name_tables_start;
 
-        static unsigned constexpr palette_size = 0x0010;
-        static unsigned constexpr background_palette_start = name_tables_end;
-        static unsigned constexpr background_palette_end =
-                background_palette_start + palette_size;
-        static unsigned constexpr sprite_palette_start = background_palette_end;
-        static unsigned constexpr sprite_palette_end =
-                sprite_palette_start + palette_size;
-        static unsigned constexpr palettes_real_size =
-                sprite_palette_end - background_palette_start;
-        static unsigned constexpr palettes_start = background_palette_start;
-        static unsigned constexpr palettes_end = 0x4000;
-        static unsigned constexpr palettes_size = palettes_end - palettes_start;
+        static Address constexpr palette_size = 0x0010;
+        static Address constexpr background_palette_start = name_tables_end + 1;
+        static Address constexpr background_palette_end = background_palette_start + palette_size - 1;
+        static Address constexpr sprite_palette_start = background_palette_end + 1;
+        static Address constexpr sprite_palette_end = sprite_palette_start + palette_size - 1;
+        static Address constexpr palettes_real_size = sprite_palette_end + 1 - background_palette_start;
+        static Address constexpr palettes_start = background_palette_start;
+        static Address constexpr palettes_end = 0x3FFF;
+        static Address constexpr palettes_size = palettes_end + 1 - palettes_start;
 
-        static bool address_is_accessible(unsigned address) noexcept;
-        bool address_is_writable(unsigned address) const noexcept override;
-        bool address_is_readable(unsigned address) const noexcept override;
+        static bool address_is_accessible(Address address) noexcept;
+        bool address_is_writable(Address address) const noexcept override;
+        bool address_is_readable(Address address) const noexcept override;
 
-        void write_byte(unsigned address, Byte byte) override;
-        Byte read_byte(unsigned address) override;
-        Byte read_byte(unsigned address) const;
+        void write_byte(Address address, Byte byte) override;
+        Byte read_byte(Address address) override;
+        Byte read_byte(Address address) const;
 
 private:
         template <class Self>
-        static auto& destination(Self& self, unsigned address) noexcept
+        static auto& destination(Self& self, Address address) noexcept
         {
-                if (pattern_tables_start <= address && address < pattern_tables_end)
+                if (pattern_tables_start <= address && address <= pattern_tables_end)
                         return self.pattern_tables_[address];
-                else if (name_tables_start <= address && address < name_tables_end)
+                else if (name_tables_start <= address && address <= name_tables_end)
                         return self.name_tables_[address % name_tables_real_size];
-                else if (palettes_start <= address && address < palettes_end)
+                else if (palettes_start <= address && address <= palettes_end)
                         return self.palettes_[address % palettes_real_size];
                 else
-                        return destination(self, address % palettes_end);
+                        return destination(self, address % (palettes_end + 1));
         }
 
         std::array<Byte, pattern_tables_size> pattern_tables_ {0};
@@ -80,41 +74,39 @@ struct Sprite {
         std::bitset<2> color_bits() const noexcept;
 };
 
-static unsigned constexpr oam_size = 0x0100;
+static Address constexpr oam_size = 0x0100;
 using OAM = std::array<Byte, oam_size>;
 
-unsigned constexpr screen_width = 256;
-unsigned constexpr screen_height = 240;
+std::size_t constexpr screen_width = 256;
+std::size_t constexpr screen_height = 240;
 using Screen = Matrix<Byte, screen_width, screen_height>;
 
 class DoubleWriteRegister {
 public:
-        void write_half(Byte byte) noexcept;
-        void write_whole(unsigned value) noexcept;
-        void increment(unsigned offset) noexcept;
-
-        unsigned read_whole() const noexcept;
+        void write_byte(Byte byte) noexcept;
+        void write_address(Address value) noexcept;
+        void increment(Address offset) noexcept;
+        Address read_address() const noexcept;
         Byte read_low_byte() const noexcept;
         Byte read_high_byte() const noexcept;
-
         bool complete() const noexcept;
 
 private:
-        unsigned value_ = 0;
+        Address value_ = 0;
         bool complete_ = true;
 };
 
 class PPU : public Memory {
 public:
-        static unsigned constexpr control_register = 0x2000;
-        static unsigned constexpr mask_register = 0x2001;
-        static unsigned constexpr status_register = 0x2002;
-        static unsigned constexpr oam_address_register = 0x2003;
-        static unsigned constexpr oam_data_register = 0x2004;
-        static unsigned constexpr scroll_register = 0x2005;
-        static unsigned constexpr vram_address_register = 0x2006;
-        static unsigned constexpr vram_data_register = 0x2007;
-        static unsigned constexpr oam_dma_register = 0x4014;
+        static Address constexpr control_register = 0x2000;
+        static Address constexpr mask_register = 0x2001;
+        static Address constexpr status_register = 0x2002;
+        static Address constexpr oam_address_register = 0x2003;
+        static Address constexpr oam_data_register = 0x2004;
+        static Address constexpr scroll_register = 0x2005;
+        static Address constexpr vram_address_register = 0x2006;
+        static Address constexpr vram_data_register = 0x2007;
+        static Address constexpr oam_dma_register = 0x4014;
 
         static unsigned constexpr sprite_width = 8;
         static unsigned constexpr background_square_size = 16;
@@ -127,16 +119,16 @@ public:
         void vblank_started();
         void vblank_finished();
 
-        bool address_is_writable(unsigned address) const noexcept override;
-        bool address_is_readable(unsigned address) const noexcept override;
+        bool address_is_writable(Address address) const noexcept override;
+        bool address_is_readable(Address address) const noexcept override;
 
-        void write_byte(unsigned address, Byte byte);
-        Byte read_byte(unsigned address);
+        void write_byte(Address address, Byte byte);
+        Byte read_byte(Address address);
 
-        unsigned base_name_table_address() const noexcept;
-        unsigned address_increment_offset() const noexcept;
-        unsigned sprite_pattern_table_address() const noexcept;
-        unsigned background_pattern_table_address() const noexcept;
+        Address base_name_table_address() const noexcept;
+        Address address_increment_offset() const noexcept;
+        Address sprite_pattern_table_address() const noexcept;
+        Address background_pattern_table_address() const noexcept;
         unsigned sprite_height() const noexcept;
         bool nmi_enabled() const noexcept;
         bool greyscale() const noexcept;
@@ -149,10 +141,10 @@ public:
         
 private:
         [[noreturn]] static void throw_not_writable(std::string const& register_name,
-                                                    unsigned address);
+                                                    Address address);
         [[noreturn]] static void throw_not_readable(std::string const& register_name,
-                                                    unsigned address);
-        [[noreturn]] static void throw_not_valid(unsigned address);
+                                                    Address address);
+        [[noreturn]] static void throw_not_valid(Address address);
 
         void paint_background(Screen& screen) const noexcept;
         void paint_background_square(Screen& screen,
@@ -187,8 +179,6 @@ private:
         OAM oam_ {0};
         ReadableMemory& dma_memory_;
 };
-
-using UniquePPU = std::unique_ptr<PPU>;
 
 }
 

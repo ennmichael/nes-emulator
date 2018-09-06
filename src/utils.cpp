@@ -27,24 +27,24 @@ Byte decode(int value) noexcept
 
 }
 
-unsigned ReadableMemory::read_pointer(unsigned address)
+Address ReadableMemory::read_pointer(Address address)
 {
         Byte const low = read_byte(address);
         Byte const high = read_byte(address + 1);
         return Utils::combine_bytes(low, high);
 }
 
-Byte ReadableMemory::deref_byte(unsigned address)
+Byte ReadableMemory::deref_byte(Address address)
 {
         return read_byte(read_pointer(address));
 }
 
-unsigned ReadableMemory::deref_pointer(unsigned address)
+Address ReadableMemory::deref_pointer(Address address)
 {
         return read_pointer(read_pointer(address));
 }
 
-void Memory::write_pointer(unsigned address, unsigned pointer)
+void Memory::write_pointer(Address address, Address pointer)
 {
         auto const& [low, high] = Utils::split_bytes(pointer);
         write_byte(address, low);
@@ -68,7 +68,7 @@ std::string format_hex(unsigned value, int width)
         return ss.str();
 }
 
-std::string format_address(unsigned address)
+std::string format_address(Address address)
 {
         return format_hex(address, 4);
 }
@@ -76,8 +76,8 @@ std::string format_address(unsigned address)
 std::vector<Byte> read_bytes(std::string const& path)
 {
         std::ifstream ifstream(path,
-                             std::ios_base::in |
-                             std::ios_base::binary);
+                               std::ios_base::in |
+                               std::ios_base::binary);
 
         if (!ifstream.is_open())
                 throw CantOpenFile(path);
@@ -102,31 +102,31 @@ std::vector<Byte> read_bytes(std::ifstream& ifstream)
         return result;
 }
 
-Byte low_byte(unsigned two_bytes) noexcept
+Byte low_byte(Address address) noexcept
 {
-        return two_bytes & 0x00FFu;
+        return address & 0x00FFu;
 }
 
-Byte high_byte(unsigned two_bytes) noexcept
+Byte high_byte(Address address) noexcept
 {
-        return two_bytes >> CHAR_BIT;
+        return address >> CHAR_BIT;
 }
 
-BytePair split_bytes(unsigned two_bytes) noexcept
+BytePair split_bytes(Address address) noexcept
 {
         return {
-                .low = low_byte(two_bytes),
-                .high = high_byte(two_bytes)
+                .low = low_byte(address),
+                .high = high_byte(address)
         };
 }
 
-unsigned combine_bytes(Byte low, Byte high) noexcept
+Address combine_bytes(Byte low, Byte high) noexcept
 {
-        return static_cast<unsigned>(low) |
-               (static_cast<unsigned>(high) << CHAR_BIT);
+        return static_cast<Address>(low) |
+               (static_cast<Address>(high) << CHAR_BIT);
 }
 
-unsigned combine_bytes(BytePair byte_pair) noexcept
+Address combine_bytes(BytePair byte_pair) noexcept
 {
         auto const& [low, high] = byte_pair;
         return combine_bytes(low, high);
