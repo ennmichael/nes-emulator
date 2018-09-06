@@ -20,18 +20,20 @@ TEST_CASE("Joypads test")
 
         auto const set_keys = [&](std::vector<Sdl::Scancode> const& scancodes)
         {
+                keyboard_state = {};
                 for (auto const scancode : scancodes)
                         keyboard_state[static_cast<std::size_t>(scancode)] = 1;
         };
 
-        auto const check_single_key = [&](Sdl::Scancode scancode, int expected_read)
+        auto const check_pressed = [&](std::vector<Sdl::Scancode> const& scancodes,
+                                       std::vector<int> const& expected_reads)
         {
-                set_keys({scancode});
+                set_keys(scancodes);
                 for (int _ = 0; _ < 2; ++_) {
                         for (int i = 0; i < Emulator::Joypad::max_reads; ++i)
                         {
                                 auto const byte = joypad.read_byte(Emulator::Joypad::first_joypad_address);
-                                if (i == expected_read || i == 19)
+                                if (i == 19 || std::find(expected_reads.cbegin(), expected_reads.cend(), i) != expected_reads.cend())
                                         CHECK(byte == 1);
                                 else
                                         CHECK(byte == 0);
@@ -39,28 +41,62 @@ TEST_CASE("Joypads test")
                 }
         };
 
-	SECTION("Joypad A is pressed")
-	{ check_single_key(Sdl::Scancode::s, 0); }
+        auto const check_pressed_and_released = [&](std::vector<Sdl::Scancode> const& scancodes,
+                                                    std::vector<int> const& expected_reads)
+        {
+                check_pressed(scancodes, expected_reads);
+                check_pressed({}, {});
+                check_pressed(scancodes, expected_reads);
+        };
 
-	SECTION("Joypad B is pressed")
-	{ check_single_key(Sdl::Scancode::a, 1); }
+        SECTION("A is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::s}, {0}); }
 
-        SECTION("Joypad SELECT is pressed")
-        { check_single_key(Sdl::Scancode::enter, 2); }
+        SECTION("B is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::a}, {1}); }
 
-        SECTION("Joypad START is pressed")
-        { check_single_key(Sdl::Scancode::spacebar, 3); }
+        SECTION("SELECT is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::enter}, {2}); }
 
-        SECTION("Joypad UP is pressed")
-        { check_single_key(Sdl::Scancode::up, 4); }
+        SECTION("START is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::spacebar}, {3}); }
 
-        SECTION("Joypad DOWN is pressed")
-        { check_single_key(Sdl::Scancode::down, 5); }
+        SECTION("UP is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::up}, {4}); }
 
-        SECTION("Joypad LEFT is pressed")
-        { check_single_key(Sdl::Scancode::left, 6); }
-        
-        SECTION("Joypad RIGHT is pressed")
-        { check_single_key(Sdl::Scancode::right, 7); }
+        SECTION("DOWN is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::down}, {5}); }
+
+        SECTION("LEFT is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::left}, {6}); }
+
+        SECTION("RIGHT is pressed and released")
+        { check_pressed_and_released({Sdl::Scancode::right}, {7}); }
+
+        SECTION("A and B are pressed and released")
+        {
+                check_pressed_and_released({Sdl::Scancode::s, Sdl::Scancode::a}, {0, 1});
+        }
+
+        SECTION("A and B and UP are pressed and released")
+        {
+                check_pressed_and_released({Sdl::Scancode::s, Sdl::Scancode::a, Sdl::Scancode::up},
+                                           {0, 1, 4});
+        }
+
+        SECTION("SELECT and START are pressed and released")
+        {
+                check_pressed_and_released({Sdl::Scancode::enter, Sdl::Scancode::spacebar},
+                                           {2, 3});
+        }
+
+        SECTION("UP, DOWN, LEFT and RIGHT are pressed and released")
+        {
+                std::vector const scancodes {
+                        Sdl::Scancode::up, Sdl::Scancode::down,
+                        Sdl::Scancode::left, Sdl::Scancode::right
+                };
+                check_pressed_and_released(scancodes, {4, 5, 6, 7});
+        }
 }
 
