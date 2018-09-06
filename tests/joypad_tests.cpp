@@ -16,7 +16,8 @@ TEST_CASE("Joypads test")
                 {Emulator::JoypadButton::left, Sdl::Scancode::left},
                 {Emulator::JoypadButton::right, Sdl::Scancode::right}
         };
-        Emulator::Joypad joypad(keyboard_state.data(), key_bindings);
+        int const signature = Emulator::first_joypad_signature;
+        Emulator::Joypad joypad(keyboard_state.data(), key_bindings, signature);
 
         auto const set_keys = [&](std::vector<Sdl::Scancode> const& scancodes)
         {
@@ -32,8 +33,8 @@ TEST_CASE("Joypads test")
                 for (int _ = 0; _ < 2; ++_) {
                         for (int i = 0; i < Emulator::Joypad::max_reads; ++i)
                         {
-                                auto const byte = joypad.read_byte(Emulator::Joypad::first_joypad_address);
-                                if (i == 19 || std::find(expected_reads.cbegin(), expected_reads.cend(), i) != expected_reads.cend())
+                                auto const byte = joypad.read_byte();
+                                if (i == signature || std::find(expected_reads.cbegin(), expected_reads.cend(), i) != expected_reads.cend())
                                         CHECK(byte == 1);
                                 else
                                         CHECK(byte == 0);

@@ -5,12 +5,12 @@ using namespace std::string_literals;
 
 namespace Emulator {
 
-bool VRAM::address_is_writable_impl(Address address) const noexcept
+bool VRAM::address_is_writable_impl(Address) const noexcept
 {
         return true;
 }
 
-bool VRAM::address_is_readable_impl(Address address) const noexcept
+bool VRAM::address_is_readable_impl(Address) const noexcept
 {
         return true;
 }

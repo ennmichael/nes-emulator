@@ -25,17 +25,36 @@ enum class JoypadButton {
 
 using KeyBindings = std::unordered_map<JoypadButton, Sdl::Scancode>;
 
-class Joypad : public Memory {
+class Joypad {
 public:
-        using Buttons = std::unordered_map<unsigned, bool>;
-
         static int constexpr max_reads = 24;
-        static Byte constexpr base_joypad_value = 0x40;
+
+        Joypad(Sdl::KeyboardState keyboard_state,
+               KeyBindings key_bindings,
+               int signature) noexcept;
+
+        void write_byte(Byte byte) noexcept;
+        Byte read_byte() noexcept;
+
+private:
+        bool strobe(Byte byte) const noexcept;
+        bool button_is_down(JoypadButton button) const;
+
+        Sdl::KeyboardState keyboard_state_;
+        KeyBindings key_bindings_;
+        int signature_;
+        Byte last_write_ = 0;
+        int num_reads_ = 0;
+};
+
+int constexpr first_joypad_signature = 19;
+
+class JoypadMemory : public Memory {
+public:
         static Address constexpr first_joypad_address = 0x4016;
 
-        Joypad(Sdl::KeyboardState keyboard_state, KeyBindings key_bindings) noexcept;
-       
-        void update();
+        JoypadMemory(Sdl::KeyboardState keyboard_state,
+                     KeyBindings first_joypad_key_bindings) noexcept;
 
 protected:
         bool address_is_writable_impl(Address address) const noexcept override;
@@ -44,13 +63,8 @@ protected:
         Byte read_byte_impl(Address address) override;
 
 private:
-        bool strobe(Byte byte) const noexcept;
-        bool button_is_down(JoypadButton button) const;
-
-        Sdl::KeyboardState keyboard_state_;
-        KeyBindings key_bindings_;
-        Byte last_write_ = 0;
-        int num_reads_ = 0;
+        Joypad first_joypad_;
+        // Possibly a second_joypad_ in the future
 };
 
 }
