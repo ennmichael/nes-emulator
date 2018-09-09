@@ -1,6 +1,5 @@
 #!/usr/bin/env python3.7
 
-from __future__ import annotations
 from typing import Iterable, Tuple, NamedTuple
 from pyquery import PyQuery
 
@@ -29,7 +28,7 @@ class Color(NamedTuple):
     b: int
 
     @staticmethod
-    def parse(style: str) -> Color:
+    def parse(style: str) -> 'Color':
         open_bracket = style.find('(')
         closed_bracket = style.find(')')
         color_tuple = style[open_bracket+1:closed_bracket]

@@ -1,0 +1,55 @@
+(notary width 60)
+
+  General
+
+Bank switching - with 16-bit addressing, each adress is 16 bits, which
+allows seamless access to 2^16=64kB of memory. To access more than 64kB,
+the NES uses bank switching. This is used in the cartridges, but not
+in the CPU/PPU/any form of internal memory. The cartridge may contain
+multiple "banks" of memory (blocks of memory chips, basically). These are
+accessed through a special chip called the memory management controller
+(MMC). This chip handles bank switching.
+
+
+  Graphics
+
+Pattern tables describe tiles. Tiles are 8x8 pixel blocks. TODO more on pattern tables and tiles.
+Name tables hold tile indices. These describe where tiles should
+be placed to form the background. SPR-RAM holds 64 sprites, each of which
+has its own specific X and Y values. A sprite also has a tile index
+(i.e. some tiles are typically used for the background, while others
+are used to be character sprites).
+Sprite byte 0 is not Y, but actually Y - 1 (quirk).
+Drawing the background and the sprites are separate actions.
+Color palettes are arrays of colors. There is an implicit system palette (not stored
+in memory) which contains all supported colors, allowing each supported color to be refered
+to by its system pallete index. Additionaly, there are three background palettes and three
+sprite palettes (stored in memory), each containing three colors and (due to mirroring) a forth
+color which is always the background color (i.e., these are four indices into the system
+color palette).
+0xF000 is the background color, mirrored every four bytes (at 0xF004, 0xF008, etc., forming the
+aforementioned fourth color of each palette).
+To recap: tiles make up sprites and backgrounds, and tiles are just 8x8 matrices
+of pallete indices (0-3). Sprites' byte 2 controls which color palettes are used 
+when drawing sprites, Attribute Tables determine which color palettes are used when
+drawing the background, and the values of tiles' matrices index into these palettes.
+Therefore, palettes are indexed using this pattern:
+43210
+|||||
+|||++- Pixel value from tile data (a single tile matrix element)
+|++--- Palette number from attribute table or OAM (0-3)
++----- Background/Sprite select (0 - background palette, 1 - sprite palette)
+
+
+  How To Render The Screen
+
+TODO
+
+
+  Possibly trivia
+
+Serial communication - communication done one bit at a time.
+Parallel communication - done multiple bits at a time.
+There's also serial and parallel ports. It's intuitive why multiple-bit
+communication is called "parallel."
+

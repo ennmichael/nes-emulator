@@ -2,6 +2,8 @@
 
 #include "utils.h"
 
+// FIXME D7-D6 of bytes written to $3F00-3FFF are ignored, i.e. they should always be set to 0 by write_byte
+
 namespace Emulator {
 
 class VRAM : public Memory {
@@ -106,8 +108,6 @@ public:
         static unsigned constexpr sprite_width = 8;
         static unsigned constexpr background_square_size = 16;
         static unsigned constexpr background_tile_size = 8;
-        static unsigned constexpr background_tiles_per_square =
-                background_square_size / background_tile_size;
 
         explicit PPU(ReadableMemory& dma_memory) noexcept;
 

@@ -250,8 +250,8 @@ Byte PPU::read_byte_impl(Address address)
 
 void PPU::paint_background(Screen& screen) noexcept
 {
-        for (unsigned square_x = 0; square_x < 8; ++square_x) {
-                for (unsigned square_y = 0; square_y < 8; ++square_y) {
+        for (unsigned square_x = 0; square_x < 2; ++square_x) {
+                for (unsigned square_y = 0; square_y < 2; ++square_y) {
                         paint_background_square(screen, square_x, square_y);
                 }
         }
@@ -259,42 +259,30 @@ void PPU::paint_background(Screen& screen) noexcept
         // FIXME This doesn't respect show_leftmost_background
 }
 
-void PPU::paint_background_square(Screen& screen,
-                                  unsigned square_x,
-                                  unsigned square_y) noexcept
+void PPU::paint_background_square(Screen& screen, unsigned square_x, unsigned square_y) noexcept
 {
         ByteBitset const attribute = vram_.read_byte(base_name_table_address() +
                                                      VRAM::name_table_size +
                                                      square_x + square_y * 8);
-
-        for (unsigned x = 0; x < background_tiles_per_square; ++x) {
-                for (unsigned y = 0; y < background_tiles_per_square; ++y) {
+        for (unsigned x = 0; x < 2; ++x) {
+                for (unsigned y = 0; y < 2; ++y) {
                         unsigned const first_color_bit = x / 2 + y / 2;
-                        unsigned const tile_x =
-                                square_x * background_tiles_per_square + x;
-                        unsigned const tile_y =
-                                square_y * background_tiles_per_square + y;
                         std::bitset<2> color_bits = 0;
                         color_bits.set(0, attribute.test(first_color_bit));
                         color_bits.set(1, attribute.test(first_color_bit + 1));
-                        paint_background_tile(screen,
-                                              tile_x, tile_y,
-                                              color_bits);
+                        unsigned const tile_x = square_x * 2 + x;
+                        unsigned const tile_y = square_y * 2 + y;
+                        paint_background_tile(screen, tile_x, tile_y, color_bits);
                 }
         }
 }
 
-void PPU::paint_background_tile(Screen& screen,
-                                unsigned tile_x,
-                                unsigned tile_y,
-                                std::bitset<2> low_color_bits) noexcept
+void PPU::paint_background_tile(Screen& screen, unsigned tile_x, unsigned tile_y, std::bitset<2> low_color_bits) noexcept
 {
-        unsigned const tile_index_address = base_name_table_address() +
-                                            tile_x + tile_y * 8;
+        unsigned const tile_index_address = base_name_table_address() + tile_x + tile_y * 8;
         Byte const tile_index = vram_.read_byte(tile_index_address);
         for (unsigned row_num = 0; row_num < background_tile_size; ++row_num) {
-                paint_background_tile_row(screen, tile_index, tile_x, tile_y,
-                                          row_num, low_color_bits);
+                paint_background_tile_row(screen, tile_index, tile_x, tile_y, row_num, low_color_bits);
         }
 }
 
@@ -309,9 +297,7 @@ void PPU::paint_background_tile_row(Screen& screen,
                                           row_num +
                                           tile_index * background_tile_size * 2;
         ByteBitset const first_tile_row = vram_.read_byte(tile_row_address);
-        ByteBitset const second_tile_row
-                = vram_.read_byte(tile_row_address + background_tile_size);
-
+        ByteBitset const second_tile_row = vram_.read_byte(tile_row_address + background_tile_size);
         for (unsigned pixel_x = 0; pixel_x < CHAR_BIT; ++pixel_x) {
                 ByteBitset palette_index = 0;
                 palette_index.set(3, low_color_bits.test(0));

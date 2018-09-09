@@ -19,6 +19,11 @@ void main_loop(Emulator::CPU& cpu, Emulator::PPU& ppu)
 
 }
 
+/**
+ * TODO Check if the PPU code is correct, and write tests by
+ * checking the contents of Screen
+ */
+
 int main(int argc, char** argv)
 {
         if (argc != 2) {
