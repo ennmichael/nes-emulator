@@ -23,9 +23,9 @@ class Section(NamedTuple):
 
     def formatted_text(self, width):
         if self.kind == SectionKind.TITLE:
-            return f'\n\n\n{self.text.title()}\n'
+            return f'\n\n\n  {self.text.title()}\n\n'
         elif self.kind == SectionKind.BODY:
-            return f'{textwrap.fill(self.text)}\n'
+            return f'{textwrap.fill(self.text).strip()}\n'
         else:
             assert False
 
@@ -39,11 +39,11 @@ def parse_sections(lines):
     for line in lines:
         if is_title(line):
             yield Section.title(line.strip())
-        elif not line.strip() and body_text:
+        elif line.strip():
+            body_text += line
+        elif body_text:
             yield Section.body(body_text)
             body_text = ''
-        else:
-            body_text += line
     if body_text:
         yield Section.body(body_text)
 
