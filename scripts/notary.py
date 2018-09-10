@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.6
+# vim: set shiftwidth=4 tabstop=4:
 
 import textwrap
 import enum

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# vim: set shiftwidth=4 tabstop=4:
 
 import io
 

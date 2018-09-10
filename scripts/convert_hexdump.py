@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# vim: set shiftwidth=4 tabstop=4:
 
 '''
 Credit to http://skilldrick.github.io/easy6502.

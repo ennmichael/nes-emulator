@@ -1,6 +1,8 @@
 #pragma once
 
 #include "utils.h"
+#include "mirroring.h"
+#include <cassert>
 
 // FIXME D7-D6 of bytes written to $3F00-3FFF are ignored, i.e. they should always be set to 0 by write_byte
 
@@ -30,6 +32,8 @@ public:
         static Address constexpr palettes_end = 0x3FFF;
         static Address constexpr palettes_size = palettes_end + 1 - palettes_start;
 
+        explicit VRAM(Mirroring mirroring) noexcept;
+
 private:
         bool address_is_writable_impl(Address address) const noexcept override;
         bool address_is_readable_impl(Address address) const noexcept override;
@@ -37,7 +41,7 @@ private:
         Byte read_byte_impl(Address address) override;
 
         template <class Self>
-        static auto& destination(Self& self, Address address) noexcept
+        static auto& memory_destination(Self& self, Address address) noexcept
         {
                 if (pattern_tables_start <= address && address <= pattern_tables_end)
                         return self.pattern_tables_[address];
@@ -46,9 +50,23 @@ private:
                 else if (palettes_start <= address && address <= palettes_end)
                         return self.palettes_[address % palettes_real_size];
                 else
-                        return destination(self, address % (palettes_end + 1));
+                        return memory_destination(self, address % (palettes_end + 1));
         }
 
+        template <class Self>
+        static auto& pattern_table_memory_destination(Self& self, Address address) noexcept
+        {
+                switch (self.mirroring_) {
+                        case Mirroring::horizontal: return 0;
+                        case Mirroring::vertical: return 0;
+                        case Mirroring::four_screen: return 0;
+                        default:
+                                assert(false);
+                                return 0;
+                }
+        }
+
+        Mirroring mirroring_;
         std::array<Byte, pattern_tables_size> pattern_tables_ {0};
         std::array<Byte, name_tables_real_size> name_tables_ {0};
         std::array<Byte, palettes_real_size> palettes_ {0};
@@ -109,7 +127,7 @@ public:
         static unsigned constexpr background_square_size = 16;
         static unsigned constexpr background_tile_size = 8;
 
-        explicit PPU(ReadableMemory& dma_memory) noexcept;
+        PPU(Mirroring mirroring, ReadableMemory& dma_memory) noexcept;
 
         void vblank_started();
         void vblank_finished();

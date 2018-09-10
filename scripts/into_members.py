@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.7
-
+# vim: set shiftwidth=4 tabstop=4:
 
 from __future__ import annotations
 from typing import Tuple, Optional, List, Iterable

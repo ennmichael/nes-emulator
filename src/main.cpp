@@ -47,11 +47,12 @@ int main(int argc, char** argv)
 
         auto keyboard_state = Sdl::get_keyboard_state();
         Emulator::JoypadMemory joypad_memory(keyboard_state, key_bindings);
-        auto cartridge = Emulator::Cartridge::make(argv[1]);
+        Emulator::Cartridge cartridge(argv[1]);
+        auto memory_mapper = Emulator::MemoryMapper::make(cartridge);
         auto ram = std::make_unique<Emulator::CPU::RAM>();
-        auto ppu = std::make_unique<Emulator::PPU>(*ram);
+        auto ppu = std::make_unique<Emulator::PPU>(cartridge.mirroring(), *ram);
         auto cpu = std::make_unique<Emulator::CPU>(
                 Emulator::CPU::AccessibleMemory::Pieces{ram.get(), ppu.get(),
-                                                        cartridge.get(), &joypad_memory});
+                                                        memory_mapper.get(), &joypad_memory});
 }
 

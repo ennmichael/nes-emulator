@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.h"
+#include "mirroring.h"
 #include <stdexcept>
 #include <vector>
 #include <memory>
@@ -23,13 +24,7 @@ public:
         using runtime_error::runtime_error;
 };
 
-enum class Mirroring {
-        horizontal,
-        vertical,
-        four_screen
-};
-
-class ROMImage {
+class Cartridge {
 public: 
         static unsigned constexpr header_size = 0x10;static Address constexpr prg_rom_bank_size = 0x4000;
 
@@ -38,10 +33,11 @@ public:
         static Address constexpr prg_rom_upper_bank_start = prg_rom_lower_bank_end;
         static Address constexpr prg_rom_upper_bank_end = prg_rom_upper_bank_start + prg_rom_bank_size - 1;
 
-        explicit ROMImage(std::string const& path);
-        explicit ROMImage(std::vector<Byte> new_data);
+        explicit Cartridge(std::string const& path);
+        explicit Cartridge(std::vector<Byte> new_data);
 
         static bool is_prg_rom(Address address) noexcept;
+
         Byte num_prg_rom_banks() const noexcept;
         Byte num_chr_rom_banks() const noexcept;
         Byte mmc_id() const noexcept;
@@ -61,21 +57,20 @@ private:
         void check_header_footprint() const;
 };
 
-class Cartridge : public Memory {
+class MemoryMapper : public Memory {
 public:
         static Address constexpr prg_ram_start = 0x6000;
         static Address constexpr prg_ram_bank_size = 0x2000;
         static Address constexpr prg_ram_end = prg_ram_start + prg_ram_bank_size - 1; 
-
-        static std::unique_ptr<Cartridge> make(std::string const& path);
-        static std::unique_ptr<Cartridge> make(ROMImage rom_image);
+        
+        static std::unique_ptr<MemoryMapper> make(Cartridge const& cartridge);
 };
 
-class NROM : public Cartridge {
+class NROM : public MemoryMapper {
 public:
         static Byte constexpr id = 0;
-
-        explicit NROM(ROMImage rom_image);
+        explicit NROM(Cartridge const& cartridge);
+        static bool is_prg_ram(Address address) noexcept;
 
 protected:
         bool address_is_writable_impl(Address address) const noexcept override;
@@ -84,9 +79,7 @@ protected:
         Byte read_byte_impl(Address address) override;
 
 private:
-        static bool is_prg_ram(Address address) noexcept;
-
-        ROMImage rom_image_;
+        Cartridge const& cartridge_;
         std::array<Byte, 0x2000> prg_ram_ {0};
 };
 

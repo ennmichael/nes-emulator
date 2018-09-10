@@ -16,12 +16,16 @@ memory management controller (MMC). This chip handles bank switching.
 
   Graphics
 
-Pattern tables describe tiles. Tiles are 8x8 pixel blocks. TODO more
-on pattern tables and tiles. Name tables hold tile indices. These
-describe where tiles should be placed to form the background. SPR-RAM
-holds 64 sprites, each of which has its own specific X and Y values. A
+Pattern tables describe tiles. Tiles are 8x8 pixel blocks. Pattern
+tables store tiles as two planes, placed next to one another. The
+first plane holds the 0th platte index bit, the second plane holds the
+1st palette index bit. Tile indices always refer to the first plane.
+Each plane is 8 bytes (a tile is 8x8 pixels), so a tile is 16 bytes
+overall. Name tables are matrices holding tile indices. These describe
+where tiles should be placed to form the background. SPR-RAM holds 64
+sprites, each of which has its own specific X and Y coordinates. A
 sprite also has a tile index (i.e. some tiles are typically used for
-the background, while others are used to be character sprites). Sprite
+the background, while others are used as character sprites). Sprite
 byte 0 is not Y, but actually Y - 1 (quirk). Drawing the background
 and the sprites are separate actions. Color palettes are arrays of
 colors. There is an implicit system palette (not stored in memory)
@@ -42,10 +46,27 @@ using the pattern 43210, where bits 0 and 1 are the pixel value from
 tile data (a single tile matrix element), bits 2 and 3 are the palette
 number from attribute table or OAM (0-3), and bit 4 is
 Background/Sprite select (0 - background palette, 1 - sprite palette)
+The NES only has 2 KB of internal memory to store name tables and attribute tables, allowing it to store two of
+each. However it can address up to four of each. Mirroring is used to allow it to do this.
 
 
 
-  How To Render The Screen
+  How To Render The Background
+
+The Background is drawn by first iterating the 64 32x32 squares
+(arranged in an 8x8 pattern). Next, draw the background for each
+square, by drawing the 4 tiles contained within the square (arranged
+in a 2x2 pattern). Depending on the square, reach into the attribute
+table and grab the proper palette index bits. Figure out the tiles
+from the pattern tables by first getting the proper tile indices from
+the name table. Get the remaining palette index bits from the tile,
+and draw the tile pattern with proper color. If the palette index is
+0, that means this background pixel is transparent. If there's no
+sprite covering it, it will be of background color.
+
+
+
+  How To Render The Sprites
 
 TODO
 

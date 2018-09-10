@@ -5,6 +5,10 @@ using namespace std::string_literals;
 
 namespace Emulator {
 
+VRAM::VRAM(Mirroring mirroring) noexcept
+    : mirroring_(mirroring)
+{}
+
 bool VRAM::address_is_writable_impl(Address) const noexcept
 {
         return true;
@@ -17,12 +21,12 @@ bool VRAM::address_is_readable_impl(Address) const noexcept
 
 void VRAM::write_byte_impl(Address address, Byte byte)
 {
-        destination(*this, address) = byte;
+        memory_destination(*this, address) = byte;
 }
 
 Byte VRAM::read_byte_impl(Address address)
 {
-        return destination(*this, address);
+        return memory_destination(*this, address);
 }
 
 auto Sprite::priority() const noexcept -> Priority
@@ -88,8 +92,9 @@ bool DoubleWriteRegister::complete() const noexcept
         return complete_;
 }
 
-PPU::PPU(ReadableMemory& dma_memory) noexcept
-        : dma_memory_(dma_memory)
+PPU::PPU(Mirroring mirroring, ReadableMemory& dma_memory) noexcept
+        : vram_(mirroring)
+        , dma_memory_(dma_memory)
 {}
 
 void PPU::vblank_started()

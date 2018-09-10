@@ -10,50 +10,50 @@ MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
         : runtime_error("RAM mapper " + std::to_string(id) + " not supported.")
 {}
 
-ROMImage::ROMImage(std::string const& path)
-        : ROMImage(Utils::read_bytes(path))
+Cartridge::Cartridge(std::string const& path)
+        : Cartridge(Utils::read_bytes(path))
 {}
 
-ROMImage::ROMImage(std::vector<Byte> new_data_)
+Cartridge::Cartridge(std::vector<Byte> new_data_)
         : data_(std::move(new_data_))
 {
         check_data_size();
         check_header_footprint();
 }
 
-bool ROMImage::is_prg_rom(Address address) noexcept
+bool Cartridge::is_prg_rom(Address address) noexcept
 {
         return prg_rom_lower_bank_start <= address && address <= prg_rom_upper_bank_end;
 }
 
-Byte ROMImage::num_prg_rom_banks() const noexcept
+Byte Cartridge::num_prg_rom_banks() const noexcept
 {
         return data_[4];
 }
 
-Byte ROMImage::num_chr_rom_banks() const noexcept
+Byte Cartridge::num_chr_rom_banks() const noexcept
 {
         return data_[5];
 }
 
-Byte ROMImage::mmc_id() const noexcept
+Byte Cartridge::mmc_id() const noexcept
 {
         ByteBitset const first_half = first_control_byte() >> CHAR_BIT/2;
         ByteBitset const second_half = second_control_byte() << CHAR_BIT/2;
         return (first_half | second_half).to_ulong();
 }
 
-bool ROMImage::has_sram() const noexcept
+bool Cartridge::has_sram() const noexcept
 {
         return first_control_byte().test(1);
 }
 
-bool ROMImage::has_trainer() const noexcept
+bool Cartridge::has_trainer() const noexcept
 {
         return first_control_byte().test(2);
 }
 
-Mirroring ROMImage::mirroring() const noexcept
+Mirroring Cartridge::mirroring() const noexcept
 {
         if (first_control_byte().test(3))
                 return Mirroring::four_screen;
@@ -62,22 +62,22 @@ Mirroring ROMImage::mirroring() const noexcept
         return Mirroring::horizontal;
 }
 
-bool ROMImage::has_chr_ram() const noexcept
+bool Cartridge::has_chr_ram() const noexcept
 {
         return num_chr_rom_banks() == 0;
 }
 
-ByteBitset ROMImage::first_control_byte() const noexcept
+ByteBitset Cartridge::first_control_byte() const noexcept
 {
         return data_[6];
 }
 
-ByteBitset ROMImage::second_control_byte() const noexcept
+ByteBitset Cartridge::second_control_byte() const noexcept
 {
         return data_[7];
 }
 
-Byte ROMImage::read_prg_rom_byte(Address address) const
+Byte Cartridge::read_prg_rom_byte(Address address) const
 {
         if (!is_prg_rom(address))
                 throw InvalidRead(address);
@@ -85,20 +85,20 @@ Byte ROMImage::read_prg_rom_byte(Address address) const
         return data_[header_size + address];
 }
 
-Address ROMImage::apply_mirroring(Address address) const noexcept
+Address Cartridge::apply_mirroring(Address address) const noexcept
 {
         if (num_prg_rom_banks() == 1 && address < prg_rom_upper_bank_start)
                 address += prg_rom_bank_size;
         return address;
 }
 
-void ROMImage::check_data_size() const
+void Cartridge::check_data_size() const
 {
         if (data_.size() < header_size)
                 throw InvalidCartridgeHeader("Cartridge header too small.");
 }
 
-void ROMImage::check_header_footprint() const
+void Cartridge::check_header_footprint() const
 {
         if (data_[0] != 'N' ||
             data_[1] != 'E' ||
@@ -108,45 +108,40 @@ void ROMImage::check_header_footprint() const
         }
 }
 
-std::unique_ptr<Cartridge> Cartridge::make(std::string const& path)
+std::unique_ptr<MemoryMapper> MemoryMapper::make(Cartridge const& cartridge)
 {
-        return make(ROMImage(path));
-}
-
-std::unique_ptr<Cartridge> Cartridge::make(ROMImage rom_image)
-{
-        if (rom_image.has_trainer())
+        if (cartridge.has_trainer())
                 throw InvalidCartridge("Trainers are not supported.");
 
-        switch (rom_image.mmc_id()) {
-                case NROM::id: return std::make_unique<NROM>(std::move(rom_image));
-                default:       throw MemoryMapperNotSupported(rom_image.mmc_id());
+        switch (cartridge.mmc_id()) {
+                case NROM::id: return std::make_unique<NROM>(cartridge);
+                default:       throw MemoryMapperNotSupported(cartridge.mmc_id());
         }
 }
 
-NROM::NROM(ROMImage rom_image)
-        : rom_image_(std::move(rom_image))
+NROM::NROM(Cartridge const& cartridge)
+        : cartridge_(cartridge)
 {
-        assert(rom_image_.mmc_id() == id);
+        assert(cartridge_.mmc_id() == id);
 
-        if (rom_image_.num_prg_rom_banks() != 1 &&
-            rom_image_.num_prg_rom_banks() != 2) {
+        if (cartridge_.num_prg_rom_banks() != 1 &&
+            cartridge_.num_prg_rom_banks() != 2) {
                 throw InvalidCartridgeHeader(
                         "NROM must have either 1 or 2 "
                         "16 KB PRG ROM banks. This one has "s +
-                        std::to_string(rom_image_.num_prg_rom_banks()) +
+                        std::to_string(cartridge_.num_prg_rom_banks()) +
                         "."s);
         }
 
-        if (rom_image_.num_chr_rom_banks() != 1) {
+        if (cartridge_.num_chr_rom_banks() != 1) {
                 throw InvalidCartridgeHeader(
                         "NROM must have a single 8 KB "
                         "CHR ROM bank. This one has "s +
-                        std::to_string(rom_image_.num_chr_rom_banks()) +
+                        std::to_string(cartridge_.num_chr_rom_banks()) +
                         "."s);
         }
 
-        if (rom_image_.has_sram()) {
+        if (cartridge_.has_sram()) {
                 throw InvalidCartridgeHeader("NROM doesn't have battery-backed SRAM, "
                                              "but this cartridge does.");
         }
@@ -164,7 +159,7 @@ bool NROM::address_is_writable_impl(Address address) const noexcept
 
 bool NROM::address_is_readable_impl(Address address) const noexcept
 {
-        return is_prg_ram(address) || ROMImage::is_prg_rom(address);
+        return is_prg_ram(address) || Cartridge::is_prg_rom(address);
 }
 
 // TODO: I don't know how I should handle CHR-ROM. Something with the PPU?
@@ -178,7 +173,7 @@ Byte NROM::read_byte_impl(Address address)
 {
         if (is_prg_ram(address))
                 return prg_ram_[address];
-        return rom_image_.read_prg_rom_byte(address);
+        return cartridge_.read_prg_rom_byte(address);
 }
 
 }
