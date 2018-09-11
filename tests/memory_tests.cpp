@@ -2,6 +2,7 @@
 
 #include "catch.hpp"
 #include "../src/cpu.h"
+#include "../src/ppu.h"
 #include "../src/utils.h"
 
 using namespace std::string_literals;
@@ -65,7 +66,7 @@ void require_mirrored_reading_works(Emulator::CPU::RAM& ram)
 
 }
 
-TEST_CASE("Emulator::CPU::RAM works")
+TEST_CASE("Emulator::CPU::RAM tests")
 {
         Emulator::CPU::RAM ram;
 
@@ -104,7 +105,7 @@ TEST_CASE("Emulator::CPU::RAM works")
         }
 }
 
-TEST_CASE("CPU::AccessibleMemory works")
+TEST_CASE("CPU::AccessibleMemory tests")
 {
         TestMemory first_piece(0);
         TestMemory second_piece(TestMemory::size);
@@ -130,5 +131,44 @@ TEST_CASE("CPU::AccessibleMemory works")
         for (Emulator::Address i = 0; i < TestMemory::size * 2; ++i) {
                 CHECK(accessible_memory.read_byte(i) == static_cast<Emulator::Byte>(i * 2));
         }
+}
+
+TEST_CASE("VRAM tests")
+{
+        // TODO
+}
+
+TEST_CASE("DoubleWriteRegister tests")
+{
+        Emulator::DoubleWriteRegister reg;
+        CHECK(reg.complete());
+        CHECK(reg.read_address() == 0);
+        CHECK(reg.read_low_byte() == 0);
+        CHECK(reg.read_high_byte() == 0);
+        reg.increment(1);
+        CHECK(reg.complete());
+        CHECK(reg.read_address() == 1);
+        CHECK(reg.read_low_byte() == 1);
+        CHECK(reg.read_high_byte() == 0);
+        reg.increment(257);
+        CHECK(reg.complete());
+        CHECK(reg.read_address() == 258);
+        CHECK(reg.read_low_byte() == 2);
+        CHECK(reg.read_high_byte() == 1);
+        reg.write_address(1);
+        CHECK(reg.complete());
+        CHECK(reg.read_address() == 1);
+        CHECK(reg.read_low_byte() == 1);
+        CHECK(reg.read_high_byte() == 0);
+        reg.write_byte(1);
+        CHECK(!reg.complete());
+        CHECK(reg.read_address() == 256);
+        CHECK(reg.read_low_byte() == 0);
+        CHECK(reg.read_high_byte() == 1);
+        reg.write_byte(2);
+        CHECK(reg.complete());
+        CHECK(reg.read_address() == 258);
+        CHECK(reg.read_low_byte() == 2);
+        CHECK(reg.read_high_byte() == 1);
 }
 
