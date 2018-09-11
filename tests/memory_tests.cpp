@@ -172,69 +172,121 @@ TEST_CASE("DoubleRegister tests")
         CHECK(reg.read_high_byte() == 1);
 }
 
-TEST_CASE("PPU control register tests")
+TEST_CASE("PPU registers tests")
 {
         TestMemory test_memory(0);
         Emulator::PPU ppu(Emulator::Mirroring::horizontal, test_memory);
-        ppu.write_byte(0x2000, 0x00);
-        CHECK(ppu.base_name_table_address() == 0x2000);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x0000);
-        CHECK(ppu.background_pattern_table_address() == 0x0000);
-        CHECK(ppu.sprite_height() == 8);
-        CHECK(!ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0xFD);
-        CHECK(ppu.base_name_table_address() == 0x2400);
-        CHECK(ppu.address_increment_offset() == 32);
-        CHECK(ppu.sprite_pattern_table_address() == 0x1000);
-        CHECK(ppu.background_pattern_table_address() == 0x1000);
-        CHECK(ppu.sprite_height() == 16);
-        CHECK(ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x02);
-        CHECK(ppu.base_name_table_address() == 0x2800);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x0000);
-        CHECK(ppu.background_pattern_table_address() == 0x0000);
-        CHECK(ppu.sprite_height() == 8);
-        CHECK(!ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x03);
-        CHECK(ppu.base_name_table_address() == 0x2C00);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x0000);
-        CHECK(ppu.background_pattern_table_address() == 0x0000);
-        CHECK(ppu.sprite_height() == 8);
-        CHECK(!ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x89);
-        CHECK(ppu.base_name_table_address() == 0x2400);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x1000);
-        CHECK(ppu.background_pattern_table_address() == 0x0000);
-        CHECK(ppu.sprite_height() == 8);
-        CHECK(ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x23);
-        CHECK(ppu.base_name_table_address() == 0x2C00);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x0000);
-        CHECK(ppu.background_pattern_table_address() == 0x0000);
-        CHECK(ppu.sprite_height() == 16);
-        CHECK(!ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x7E);
-        CHECK(ppu.base_name_table_address() == 0x2800);
-        CHECK(ppu.address_increment_offset() == 32);
-        CHECK(ppu.sprite_pattern_table_address() == 0x1000);
-        CHECK(ppu.background_pattern_table_address() == 0x1000);
-        CHECK(ppu.sprite_height() == 16);
-        CHECK(!ppu.nmi_enabled());
-        ppu.write_byte(0x2000, 0x11);
-        CHECK(ppu.base_name_table_address() == 0x2400);
-        CHECK(ppu.address_increment_offset() == 1);
-        CHECK(ppu.sprite_pattern_table_address() == 0x0000);
-        CHECK(ppu.background_pattern_table_address() == 0x1000);
-        CHECK(ppu.sprite_height() == 8);
-        CHECK(!ppu.nmi_enabled());
-}
 
-TEST_CASE("PPU registers tests")
-{
+        SECTION("Control register tests")
+        {
+                ppu.write_byte(0x2000, 0x00);
+                CHECK(ppu.base_name_table_address() == 0x2000);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x0000);
+                CHECK(ppu.background_pattern_table_address() == 0x0000);
+                CHECK(ppu.sprite_height() == 8);
+                CHECK(!ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0xFD);
+                CHECK(ppu.base_name_table_address() == 0x2400);
+                CHECK(ppu.address_increment_offset() == 32);
+                CHECK(ppu.sprite_pattern_table_address() == 0x1000);
+                CHECK(ppu.background_pattern_table_address() == 0x1000);
+                CHECK(ppu.sprite_height() == 16);
+                CHECK(ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x02);
+                CHECK(ppu.base_name_table_address() == 0x2800);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x0000);
+                CHECK(ppu.background_pattern_table_address() == 0x0000);
+                CHECK(ppu.sprite_height() == 8);
+                CHECK(!ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x03);
+                CHECK(ppu.base_name_table_address() == 0x2C00);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x0000);
+                CHECK(ppu.background_pattern_table_address() == 0x0000);
+                CHECK(ppu.sprite_height() == 8);
+                CHECK(!ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x89);
+                CHECK(ppu.base_name_table_address() == 0x2400);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x1000);
+                CHECK(ppu.background_pattern_table_address() == 0x0000);
+                CHECK(ppu.sprite_height() == 8);
+                CHECK(ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x23);
+                CHECK(ppu.base_name_table_address() == 0x2C00);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x0000);
+                CHECK(ppu.background_pattern_table_address() == 0x0000);
+                CHECK(ppu.sprite_height() == 16);
+                CHECK(!ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x7E);
+                CHECK(ppu.base_name_table_address() == 0x2800);
+                CHECK(ppu.address_increment_offset() == 32);
+                CHECK(ppu.sprite_pattern_table_address() == 0x1000);
+                CHECK(ppu.background_pattern_table_address() == 0x1000);
+                CHECK(ppu.sprite_height() == 16);
+                CHECK(!ppu.nmi_enabled());
+                ppu.write_byte(0x2000, 0x11);
+                CHECK(ppu.base_name_table_address() == 0x2400);
+                CHECK(ppu.address_increment_offset() == 1);
+                CHECK(ppu.sprite_pattern_table_address() == 0x0000);
+                CHECK(ppu.background_pattern_table_address() == 0x1000);
+                CHECK(ppu.sprite_height() == 8);
+                CHECK(!ppu.nmi_enabled());
+        }
+
+        SECTION("Mask register tests")
+        {
+                ppu.write_byte(0x2001, 0x00);
+                CHECK(!ppu.greyscale());
+                CHECK(!ppu.show_leftmost_background());
+                CHECK(!ppu.show_leftmost_sprites());
+                CHECK(!ppu.show_background());
+                CHECK(!ppu.show_sprites());
+                ppu.write_byte(0x2001, 0xFF);
+                CHECK(ppu.greyscale());
+                CHECK(ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(ppu.show_background());
+                CHECK(ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x57);
+                CHECK(ppu.greyscale());
+                CHECK(ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(!ppu.show_background());
+                CHECK(ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x6E);
+                CHECK(!ppu.greyscale());
+                CHECK(ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(ppu.show_background());
+                CHECK(!ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x6E);
+                CHECK(!ppu.greyscale());
+                CHECK(ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(ppu.show_background());
+                CHECK(!ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x84);
+                CHECK(!ppu.greyscale());
+                CHECK(!ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(!ppu.show_background());
+                CHECK(!ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x4B);
+                CHECK(ppu.greyscale());
+                CHECK(ppu.show_leftmost_background());
+                CHECK(!ppu.show_leftmost_sprites());
+                CHECK(ppu.show_background());
+                CHECK(!ppu.show_sprites());
+                ppu.write_byte(0x2001, 0x54);
+                CHECK(!ppu.greyscale());
+                CHECK(!ppu.show_leftmost_background());
+                CHECK(ppu.show_leftmost_sprites());
+                CHECK(!ppu.show_background());
+                CHECK(ppu.show_sprites());
+        }
 }
 
