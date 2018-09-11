@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #include "cpu.h"
 #include <utility>
 #include <string>

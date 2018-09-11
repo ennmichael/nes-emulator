@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #include <cassert>
 #include "ppu.h"
 
@@ -8,6 +10,21 @@ namespace Emulator {
 VRAM::VRAM(Mirroring mirroring) noexcept
     : mirroring_(mirroring)
 {}
+
+Tile VRAM::read_tile(Address address)
+{
+        Tile tile {0};
+        for (unsigned y = 0; y < 8; ++y) {
+                Byte const first_plane = read_byte(address + y);
+                Byte const second_plane = read_byte(address + y + 1);
+                for (unsigned x = 0; x < 8; ++x) {
+                        Byte const first_bit = Utils::bit(first_plane, x);
+                        Byte const second_bit = Utils::bit(second_plane, x);
+                        tile[x][y] = first_bit + second_bit;
+                }
+        }
+        return tile;
+}
 
 bool VRAM::address_is_writable_impl(Address) const noexcept
 {
@@ -105,7 +122,7 @@ void PPU::vblank_finished()
 
 Address PPU::base_name_table_address() const noexcept
 {
-        Address const mult = control_.to_ulong() & 0xC0u;
+        Address const mult = control_.to_ulong() & 0x03;
         Address const offset =
                 mult * (VRAM::name_table_size + VRAM::attribute_table_size);
         return VRAM::name_tables_start + offset;
@@ -113,17 +130,17 @@ Address PPU::base_name_table_address() const noexcept
 
 Address PPU::address_increment_offset() const noexcept
 {
-        return (control_.test(2)) ? 0x0020u : 0x0000u;
+        return (control_.test(2)) ? 0x0020 : 0x0000;
 }
 
 Address PPU::sprite_pattern_table_address() const noexcept
 {
-        return (control_.test(3)) ? VRAM::pattern_table_size : 0u;
+        return (control_.test(3)) ? VRAM::pattern_table_size : 0;
 }
 
 Address PPU::background_pattern_table_address() const noexcept
 {
-        return (control_.test(4)) ? VRAM::pattern_table_size : 0u;
+        return (control_.test(4)) ? VRAM::pattern_table_size : 0;
 }
 
 unsigned PPU::sprite_height() const noexcept
@@ -255,68 +272,42 @@ Byte PPU::read_byte_impl(Address address)
 
 void PPU::paint_background(Screen& screen) noexcept
 {
-        for (unsigned square_x = 0; square_x < 2; ++square_x) {
-                for (unsigned square_y = 0; square_y < 2; ++square_y) {
-                        paint_background_square(screen, square_x, square_y);
-                }
-        }
-
         // FIXME This doesn't respect show_leftmost_background
-}
-
-void PPU::paint_background_square(Screen& screen, unsigned square_x, unsigned square_y) noexcept
-{
-        ByteBitset const attribute = vram_.read_byte(base_name_table_address() +
-                                                     VRAM::name_table_size +
-                                                     square_x + square_y * 8);
-        for (unsigned x = 0; x < 2; ++x) {
-                for (unsigned y = 0; y < 2; ++y) {
-                        unsigned const first_color_bit = x / 2 + y / 2;
-                        std::bitset<2> color_bits = 0;
-                        color_bits.set(0, attribute.test(first_color_bit));
-                        color_bits.set(1, attribute.test(first_color_bit + 1));
-                        unsigned const tile_x = square_x * 2 + x;
-                        unsigned const tile_y = square_y * 2 + y;
-                        paint_background_tile(screen, tile_x, tile_y, color_bits);
+        auto const draw_tile = [&](Byte palette, Address tile_address)
+        {
+                auto const tile = vram_.read_tile(tile_address);
+                unsigned const x = tile_address % 32;
+                unsigned const y = (tile_address - x) / 32;
+                for (unsigned y_offset = 0; y_offset < tile_height; ++y_offset) {
+                        for (unsigned x_offset = 0; x_offset < tile_width; ++x_offset) {
+                                Byte const palette_index = tile[y_offset][x_offset] | (palette << 2);
+                                Byte const color = vram_.read_byte(VRAM::background_palette_start + palette_index);
+                                screen[x][y] = color;
+                        }
                 }
-        }
-}
+        };
 
-void PPU::paint_background_tile(Screen& screen, unsigned tile_x, unsigned tile_y, std::bitset<2> low_color_bits) noexcept
-{
-        unsigned const tile_index_address = base_name_table_address() + tile_x + tile_y * 8;
-        Byte const tile_index = vram_.read_byte(tile_index_address);
-        for (unsigned row_num = 0; row_num < background_tile_size; ++row_num) {
-                paint_background_tile_row(screen, tile_index, tile_x, tile_y, row_num, low_color_bits);
-        }
-}
+        auto const draw_4x4_tile_square = [&](Byte palette, Address upper_left_tile_address)
+        {
+                draw_tile(palette, upper_left_tile_address);
+                draw_tile(palette, upper_left_tile_address + 1);
+                draw_tile(palette, upper_left_tile_address + 32);
+                draw_tile(palette, upper_left_tile_address + 32 + 1);
+        };
 
-void PPU::paint_background_tile_row(Screen& screen,
-                                    Byte tile_index,
-                                    unsigned tile_x,
-                                    unsigned tile_y,
-                                    unsigned row_num,
-                                    std::bitset<2> low_color_bits) noexcept
-{
-        unsigned const tile_row_address = background_pattern_table_address() +
-                                          row_num +
-                                          tile_index * background_tile_size * 2;
-        ByteBitset const first_tile_row = vram_.read_byte(tile_row_address);
-        ByteBitset const second_tile_row = vram_.read_byte(tile_row_address + background_tile_size);
-        for (unsigned pixel_x = 0; pixel_x < CHAR_BIT; ++pixel_x) {
-                ByteBitset palette_index = 0;
-                palette_index.set(3, low_color_bits.test(0));
-                palette_index.set(2, low_color_bits.test(1));
-                palette_index.set(1, second_tile_row.test(pixel_x));
-                palette_index.set(0, first_tile_row.test(pixel_x));
-                Byte const color = background_color(palette_index.to_ulong());
-                screen[tile_x * 8 + pixel_x][tile_y * 8 + row_num] = color;
+        Address const name_table_address = base_name_table_address();
+        Address const attribute_table_address = name_table_address + VRAM::name_table_size;
+        for (Address attribute_address = attribute_table_address;
+             attribute_address < attribute_table_address + VRAM::attribute_table_size;
+             ++attribute_address) {
+                Address const attribute_byte = vram_.read_byte(attribute_address);
+                Address const base_tile_address = attribute_address - VRAM::name_table_size +
+                                                  4 * (attribute_address - attribute_table_address);
+                draw_4x4_tile_square(attribute_byte & 0x03, base_tile_address);
+                draw_4x4_tile_square((attribute_byte >> 2) & 0x03, base_tile_address + 2);
+                draw_4x4_tile_square((attribute_byte >> 4) & 0x03, base_tile_address + 64);
+                draw_4x4_tile_square((attribute_byte >> 6) & 0x03, base_tile_address + 64 + 2);
         }
-}
-
-Byte PPU::background_color(unsigned palette_index) noexcept
-{
-        return vram_.read_byte(VRAM::background_palette_start + palette_index);
 }
 
 Byte PPU::sprite_color(unsigned palette_index) noexcept

@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #include <cassert>
 #include <utility>
 #include "joypad.h"

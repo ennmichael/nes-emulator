@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #pragma once
 
 #include "utils.h"
@@ -7,6 +9,10 @@
 // FIXME D7-D6 of bytes written to $3F00-3FFF are ignored, i.e. they should always be set to 0 by write_byte
 
 namespace Emulator {
+
+std::size_t constexpr tile_width = 8;
+std::size_t constexpr tile_height = 8;
+using Tile = Matrix<Byte, tile_width, tile_height>;
 
 class VRAM : public Memory {
 public:
@@ -33,6 +39,8 @@ public:
         static Address constexpr palettes_size = palettes_end + 1 - palettes_start;
 
         explicit VRAM(Mirroring mirroring) noexcept;
+
+        Tile read_tile(Address address);
 
 private:
         bool address_is_writable_impl(Address address) const noexcept override;
@@ -154,22 +162,7 @@ protected:
         
 private:
         void paint_background(Screen& screen) noexcept;
-        void paint_background_square(Screen& screen,
-                                     unsigned square_x,
-                                     unsigned square_y) noexcept;
-        void paint_background_tile(Screen& screen,
-                                   unsigned tile_x,
-                                   unsigned tile_y,
-                                   std::bitset<2> low_color_bits) noexcept;
-        void paint_background_tile_row(Screen& screen,
-                                       Byte tile_index,
-                                       unsigned tile_x,
-                                       unsigned tile_y,
-                                       unsigned row_num,
-                                       std::bitset<2> low_color_bits) noexcept;
-
-        Byte background_color(unsigned palette_index) noexcept;
-        Byte sprite_color(unsigned palette_index) noexcept;
+        Byte sprite_color(unsigned palette_index) noexcept; // Do I need this?
 
         void increment_oam_address() noexcept;
         void increment_vram_address() noexcept;

@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #include "cartridge.h"
 #include <utility>
 #include <cassert>
@@ -14,8 +16,8 @@ Cartridge::Cartridge(std::string const& path)
         : Cartridge(Utils::read_bytes(path))
 {}
 
-Cartridge::Cartridge(std::vector<Byte> new_data_)
-        : data_(std::move(new_data_))
+Cartridge::Cartridge(std::vector<Byte> data)
+        : data_(std::move(data))
 {
         check_data_size();
         check_header_footprint();

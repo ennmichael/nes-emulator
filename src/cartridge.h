@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #pragma once
 
 #include "utils.h"
@@ -34,7 +36,7 @@ public:
         static Address constexpr prg_rom_upper_bank_end = prg_rom_upper_bank_start + prg_rom_bank_size - 1;
 
         explicit Cartridge(std::string const& path);
-        explicit Cartridge(std::vector<Byte> new_data);
+        explicit Cartridge(std::vector<Byte> data);
 
         static bool is_prg_rom(Address address) noexcept;
 
@@ -83,12 +85,12 @@ private:
         std::array<Byte, 0x2000> prg_ram_ {0};
 };
 
-class MMC1 : public Cartridge {
+class MMC1 : public MemoryMapper {
 public:
         static Byte constexpr id = 1;
 };
 
-class MMC3 : public Cartridge {
+class MMC3 : public MemoryMapper {
 public:
         static Byte constexpr id = 4;
 };
