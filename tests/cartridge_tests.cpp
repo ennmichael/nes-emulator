@@ -1,3 +1,5 @@
+// vim: set shiftwidth=8 tabstop=8:
+
 #include "catch.hpp"
 #include "../src/cartridge.h"
 #include <array>
