@@ -73,9 +73,9 @@ std::bitset<2> Sprite::color_bits() const noexcept
 void DoubleWriteRegister::write_byte(Byte byte) noexcept
 {
         if (complete_)
-                value_ = byte;
+                write_high_byte(byte);
         else
-                value_ |= static_cast<Address>(byte) << CHAR_BIT;
+                write_low_byte(byte);
         complete_ = !complete_;
 }
 
@@ -107,6 +107,16 @@ Byte DoubleWriteRegister::read_high_byte() const noexcept
 bool DoubleWriteRegister::complete() const noexcept
 {
         return complete_;
+}
+
+void DoubleWriteRegister::write_low_byte(Byte byte) noexcept
+{
+        value_ |= byte;
+}
+
+void DoubleWriteRegister::write_high_byte(Byte byte) noexcept
+{
+        value_ = static_cast<Address>(byte) << CHAR_BIT;
 }
 
 PPU::PPU(Mirroring mirroring, ReadableMemory& dma_memory) noexcept

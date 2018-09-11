@@ -8,6 +8,8 @@
 #include <iostream>
 #include <utility>
 
+// TODO Test PPU registers
+
 using namespace std::string_literals;
 
 namespace {

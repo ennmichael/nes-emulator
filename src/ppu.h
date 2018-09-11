@@ -28,6 +28,15 @@ public:
         static Address constexpr name_tables_size = name_tables_end + 1 - name_tables_start;
         static Address constexpr name_tables_real_size = 0x3000 - name_tables_start;
 
+        static Address constexpr first_name_table_start = name_tables_start;
+        static Address constexpr first_name_table_end = first_name_table_start + name_table_size + attribute_table_size - 1;
+        static Address constexpr second_name_table_start = first_name_table_end + 1;
+        static Address constexpr second_name_table_end = second_name_table_start + name_table_size + attribute_table_size - 1;
+        static Address constexpr third_name_table_start = second_name_table_end + 1;
+        static Address constexpr third_name_table_end = third_name_table_start + name_table_size + attribute_table_size - 1;
+        static Address constexpr fourth_name_table_start = third_name_table_end + 1;
+        static Address constexpr fourth_name_table_end = fourth_name_table_start + name_table_size + attribute_table_size - 1;
+
         static Address constexpr palette_size = 0x0010;
         static Address constexpr background_palette_start = name_tables_end + 1;
         static Address constexpr background_palette_end = background_palette_start + palette_size - 1;
@@ -54,7 +63,7 @@ private:
                 if (pattern_tables_start <= address && address <= pattern_tables_end)
                         return self.pattern_tables_[address];
                 else if (name_tables_start <= address && address <= name_tables_end)
-                        return self.name_tables_[address % name_tables_real_size];
+                        return name_table_memory_destination(self, address);
                 else if (palettes_start <= address && address <= palettes_end)
                         return self.palettes_[address % palettes_real_size];
                 else
@@ -62,16 +71,28 @@ private:
         }
 
         template <class Self>
-        static auto& pattern_table_memory_destination(Self& self, Address address) noexcept
+        static auto& name_table_memory_destination(Self& self, Address address) noexcept
         {
+                address %= name_tables_real_size;
                 switch (self.mirroring_) {
-                        case Mirroring::horizontal: return 0;
-                        case Mirroring::vertical: return 0;
-                        case Mirroring::four_screen: return 0;
+                        case Mirroring::horizontal:
+                                if ((second_name_table_start <= address && address <= second_name_table_end) ||
+                                    (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
+                                        address -= name_table_size + attribute_table_size;
+                                }
+                                break;
+                        case Mirroring::vertical:
+                                if ((third_name_table_start <= address && address <= third_name_table_end) ||
+                                    (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
+                                        address -= 2 * (name_table_size + attribute_table_size);
+                                }
+                                break;
+                        case Mirroring::four_screen:
+                                break;
                         default:
                                 assert(false);
-                                return 0;
                 }
+                return self.name_tables_[address];
         }
 
         Mirroring mirroring_;
@@ -94,7 +115,7 @@ struct Sprite {
         Priority priority() const noexcept;
         bool flip_vertically() const noexcept;
         bool flip_horizontally() const noexcept;
-        std::bitset<2> color_bits() const noexcept;
+        std::bitset<2> color_bits() const noexcept; // TODO Perhaps just return a Byte here
 };
 
 static Address constexpr oam_size = 0x0100;
@@ -104,6 +125,7 @@ std::size_t constexpr screen_width = 256;
 std::size_t constexpr screen_height = 240;
 using Screen = Matrix<Byte, screen_width, screen_height>;
 
+// TODO Rename DoubleWriteRegister -> AddressRegister
 class DoubleWriteRegister {
 public:
         void write_byte(Byte byte) noexcept;
@@ -115,6 +137,9 @@ public:
         bool complete() const noexcept;
 
 private:
+        void write_low_byte(Byte byte) noexcept;
+        void write_high_byte(Byte byte) noexcept;
+
         Address value_ = 0;
         bool complete_ = true;
 };
