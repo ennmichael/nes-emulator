@@ -6,8 +6,6 @@
 #include "mirroring.h"
 #include <cassert>
 
-// FIXME D7-D6 of bytes written to $3F00-3FFF are ignored, i.e. they should always be set to 0 by write_byte
-
 namespace Emulator {
 
 std::size_t constexpr tile_width = 8;
@@ -115,7 +113,7 @@ struct Sprite {
         Priority priority() const noexcept;
         bool flip_vertically() const noexcept;
         bool flip_horizontally() const noexcept;
-        std::bitset<2> color_bits() const noexcept; // TODO Perhaps just return a Byte here
+        Byte color() const noexcept;
 };
 
 static Address constexpr oam_size = 0x0100;
@@ -125,8 +123,7 @@ std::size_t constexpr screen_width = 256;
 std::size_t constexpr screen_height = 240;
 using Screen = Matrix<Byte, screen_width, screen_height>;
 
-// TODO Rename DoubleWriteRegister -> AddressRegister
-class DoubleWriteRegister {
+class DoubleRegister {
 public:
         void write_byte(Byte byte) noexcept;
         void write_address(Address value) noexcept;
@@ -197,8 +194,8 @@ private:
         ByteBitset mask_ = 0;
         ByteBitset status_ = 0;
         Byte oam_address_ = 0;
-        DoubleWriteRegister scroll_;
-        DoubleWriteRegister vram_address_;
+        DoubleRegister scroll_;
+        DoubleRegister vram_address_;
         Byte vram_data_buffer_ = 0;
         VRAM vram_;
         OAM oam_ {0};

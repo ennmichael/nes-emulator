@@ -38,6 +38,8 @@ bool VRAM::address_is_readable_impl(Address) const noexcept
 
 void VRAM::write_byte_impl(Address address, Byte byte)
 {
+        if (palettes_start <= address && address <= palettes_end)
+                byte &= 0x3F;
         memory_destination(*this, address) = byte;
 }
 
@@ -62,15 +64,12 @@ bool Sprite::flip_horizontally() const noexcept
         return attributes.test(6);
 }
 
-std::bitset<2> Sprite::color_bits() const noexcept
+Byte Sprite::color() const noexcept
 {
-        std::bitset<2> result;
-        result.set(0, attributes.test(0));
-        result.set(1, attributes.test(1));
-        return result;
+        return attributes.test(0) | (attributes.test(1) << 1);
 }
 
-void DoubleWriteRegister::write_byte(Byte byte) noexcept
+void DoubleRegister::write_byte(Byte byte) noexcept
 {
         if (complete_)
                 write_high_byte(byte);
@@ -79,42 +78,42 @@ void DoubleWriteRegister::write_byte(Byte byte) noexcept
         complete_ = !complete_;
 }
 
-void DoubleWriteRegister::write_address(Address value) noexcept
+void DoubleRegister::write_address(Address value) noexcept
 {
         value_ = value;
 }
 
-void DoubleWriteRegister::increment(Address offset) noexcept
+void DoubleRegister::increment(Address offset) noexcept
 {
         value_ += offset;
 }
 
-Address DoubleWriteRegister::read_address() const noexcept
+Address DoubleRegister::read_address() const noexcept
 {
         return value_;
 }
 
-Byte DoubleWriteRegister::read_low_byte() const noexcept
+Byte DoubleRegister::read_low_byte() const noexcept
 {
         return Utils::low_byte(value_);
 }
 
-Byte DoubleWriteRegister::read_high_byte() const noexcept
+Byte DoubleRegister::read_high_byte() const noexcept
 {
         return Utils::high_byte(value_);
 }
 
-bool DoubleWriteRegister::complete() const noexcept
+bool DoubleRegister::complete() const noexcept
 {
         return complete_;
 }
 
-void DoubleWriteRegister::write_low_byte(Byte byte) noexcept
+void DoubleRegister::write_low_byte(Byte byte) noexcept
 {
         value_ |= byte;
 }
 
-void DoubleWriteRegister::write_high_byte(Byte byte) noexcept
+void DoubleRegister::write_high_byte(Byte byte) noexcept
 {
         value_ = static_cast<Address>(byte) << CHAR_BIT;
 }
@@ -140,7 +139,7 @@ Address PPU::base_name_table_address() const noexcept
 
 Address PPU::address_increment_offset() const noexcept
 {
-        return (control_.test(2)) ? 0x0020 : 0x0000;
+        return (control_.test(2)) ? 0x0020 : 0x0001;
 }
 
 Address PPU::sprite_pattern_table_address() const noexcept
@@ -312,7 +311,8 @@ void PPU::paint_background(Screen& screen) noexcept
              ++attribute_address) {
                 Address const attribute_byte = vram_.read_byte(attribute_address);
                 Address const base_tile_address = attribute_address - VRAM::name_table_size +
-                                                  4 * (attribute_address - attribute_table_address);
+                                                  4 * (attribute_address - attribute_table_address) -
+                                                  VRAM::pattern_table_size - background_pattern_table_address();
                 draw_4x4_tile_square(attribute_byte & 0x03, base_tile_address);
                 draw_4x4_tile_square((attribute_byte >> 2) & 0x03, base_tile_address + 2);
                 draw_4x4_tile_square((attribute_byte >> 4) & 0x03, base_tile_address + 64);
