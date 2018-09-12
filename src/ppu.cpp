@@ -20,7 +20,7 @@ Tile VRAM::read_tile(Address address)
                 for (unsigned x = 0; x < 8; ++x) {
                         Byte const first_bit = Utils::bit(first_plane, x);
                         Byte const second_bit = Utils::bit(second_plane, x);
-                        tile[x][y] = first_bit + second_bit;
+                        tile[y][x] = first_bit + second_bit;
                 }
         }
         return tile;
@@ -46,6 +46,38 @@ void VRAM::write_byte_impl(Address address, Byte byte)
 Byte VRAM::read_byte_impl(Address address)
 {
         return memory_destination(*this, address);
+}
+
+Address VRAM::apply_name_table_mirroring(Address address, Mirroring mirroring) noexcept
+{
+        if (address > fourth_name_table_end)
+                address -= name_tables_real_size;
+        switch (mirroring) {
+                case Mirroring::horizontal:
+                        if ((second_name_table_start <= address && address <= second_name_table_end) ||
+                            (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
+                                address -= name_table_size + attribute_table_size;
+                        }
+                        break;
+                case Mirroring::vertical:
+                        if ((third_name_table_start <= address && address <= third_name_table_end) ||
+                            (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
+                                address -= 2 * (name_table_size + attribute_table_size);
+                        }
+                        break;
+                case Mirroring::four_screen:
+                        break;
+                default:
+                        assert(false);
+        }
+        return address % name_tables_real_size;
+}
+
+Address VRAM::apply_palettes_mirroring(Address address) noexcept
+{
+        if (address % 4 == 0)
+                return 0;
+        return address % palettes_real_size;
 }
 
 auto Sprite::priority() const noexcept -> Priority

@@ -23,8 +23,8 @@ public:
         static Address constexpr attribute_table_size = 0x0040;
         static Address constexpr name_tables_start = pattern_tables_end + 1;
         static Address constexpr name_tables_end = 0x3EFF;
-        static Address constexpr name_tables_size = name_tables_end + 1 - name_tables_start;
         static Address constexpr name_tables_real_size = 0x3000 - name_tables_start;
+        static Address constexpr name_tables_size = name_tables_end + 1 - name_tables_start;
 
         static Address constexpr first_name_table_start = name_tables_start;
         static Address constexpr first_name_table_end = first_name_table_start + name_table_size + attribute_table_size - 1;
@@ -44,54 +44,35 @@ public:
         static Address constexpr palettes_start = background_palette_start;
         static Address constexpr palettes_end = 0x3FFF;
         static Address constexpr palettes_size = palettes_end + 1 - palettes_start;
+        static Address constexpr real_size = palettes_end + 1;
 
         explicit VRAM(Mirroring mirroring) noexcept;
 
         Tile read_tile(Address address);
 
-private:
+protected:
         bool address_is_writable_impl(Address address) const noexcept override;
         bool address_is_readable_impl(Address address) const noexcept override;
         void write_byte_impl(Address address, Byte byte) override;
         Byte read_byte_impl(Address address) override;
 
+private:
         template <class Self>
         static auto& memory_destination(Self& self, Address address) noexcept
         {
+                address = address % real_size;
                 if (pattern_tables_start <= address && address <= pattern_tables_end)
                         return self.pattern_tables_[address];
                 else if (name_tables_start <= address && address <= name_tables_end)
-                        return name_table_memory_destination(self, address);
+                        return self.name_tables_[apply_name_table_mirroring(address, self.mirroring_)];
                 else if (palettes_start <= address && address <= palettes_end)
-                        return self.palettes_[address % palettes_real_size];
+                        return self.palettes_[apply_palettes_mirroring(address)];
                 else
-                        return memory_destination(self, address % (palettes_end + 1));
+                        assert(false);
         }
 
-        template <class Self>
-        static auto& name_table_memory_destination(Self& self, Address address) noexcept
-        {
-                address %= name_tables_real_size;
-                switch (self.mirroring_) {
-                        case Mirroring::horizontal:
-                                if ((second_name_table_start <= address && address <= second_name_table_end) ||
-                                    (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
-                                        address -= name_table_size + attribute_table_size;
-                                }
-                                break;
-                        case Mirroring::vertical:
-                                if ((third_name_table_start <= address && address <= third_name_table_end) ||
-                                    (fourth_name_table_start <= address && address <= fourth_name_table_end)) {
-                                        address -= 2 * (name_table_size + attribute_table_size);
-                                }
-                                break;
-                        case Mirroring::four_screen:
-                                break;
-                        default:
-                                assert(false);
-                }
-                return self.name_tables_[address];
-        }
+        static Address apply_name_table_mirroring(Address address, Mirroring mirroring) noexcept;
+        static Address apply_palettes_mirroring(Address address) noexcept; 
 
         Mirroring mirroring_;
         std::array<Byte, pattern_tables_size> pattern_tables_ {0};
@@ -113,7 +94,7 @@ struct Sprite {
         Priority priority() const noexcept;
         bool flip_vertically() const noexcept;
         bool flip_horizontally() const noexcept;
-        Byte color() const noexcept;
+        Byte color() const noexcept; // TODO This is actually a pallete index
 };
 
 static Address constexpr oam_size = 0x0100;

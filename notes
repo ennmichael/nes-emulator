@@ -41,15 +41,14 @@ sprites and backgrounds, and tiles are just 8x8 matrices of pallete
 indices (0-3). Sprites' byte 2 controls which color palettes are used
 when drawing sprites, Attribute Tables determine which color palettes
 are used when drawing the background, and the values of tiles'
-matrices index into these palettes.
-
-Therefore, palettes are indexed
-using the bit pattern 43210, where bits 0 and 1 are the pixel value from
-tile data (a single tile matrix element), bits 2 and 3 are the palette
-number from attribute table or OAM (0-3), and bit 4 is
+matrices index into these palettes. Therefore, palettes are indexed
+using the bit pattern 43210, where bits 0 and 1 are the pixel value
+from tile data (a single tile matrix element), bits 2 and 3 are the
+palette number from attribute table or OAM (0-3), and bit 4 is
 Background/Sprite select (0 - background palette, 1 - sprite palette)
-The NES only has 2 KB of internal memory to store name tables and attribute tables, allowing it to store two of
-each. However it can address up to four of each. Mirroring is used to allow it to do this.
+The NES only has 2 KB of internal memory to store name tables and
+attribute tables, allowing it to store two of each. However it can
+address up to four of each. Mirroring is used to allow it to do this.
 
 
 
@@ -81,11 +80,8 @@ communication - done multiple bits at a time. There's also serial and
 parallel ports. It's intuitive why multiple-bit communication is
 called "parallel."
 
+For the PPU address register: valid addresses are $0000-$3FFF; higher
+addresses will be mirrored down.  Do I have this implemented? Yes
 
-For the PPU address register: valid addresses are $0000-$3FFF; higher addresses will be mirrored down. 
-Do I have this implemented?
-
-After reading PPUSTATUS to reset the address latch, write the 16-bit address of VRAM you want to access here, upper byte first.
-Resetting the address latch doesn't matter to me; but I'm writing lower byte first, which is incorrect.
-Do reset the lower byte once the higher byte is written.
-
+Sprite 0 hit does not trigger in any area where the background or
+sprites are hidden.

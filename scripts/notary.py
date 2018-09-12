@@ -24,9 +24,9 @@ class Section(NamedTuple):
 
     def formatted_text(self, width):
         if self.kind == SectionKind.TITLE:
-            return f'\n\n\n  {self.text.title()}\n\n'
+            return f'\n\n\n  {self.text.title()}\n'
         elif self.kind == SectionKind.BODY:
-            return f'{textwrap.fill(self.text).strip()}\n'
+            return f'\n{textwrap.fill(self.text).strip()}\n'
         else:
             assert False
 

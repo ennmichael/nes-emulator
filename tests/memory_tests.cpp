@@ -54,14 +54,20 @@ private:
         std::array<Emulator::Byte, size> memory_;
 };
 
-void require_mirrored_reading_works(Emulator::CPU::RAM& ram)
+void check_ram_mirroring(Emulator::CPU::RAM& ram)
 {
         for (unsigned i = Emulator::CPU::RAM::start + Emulator::CPU::RAM::real_size;
              i < Emulator::CPU::RAM::end;
              ++i) {
                 auto const mirrored_adress = i - Emulator::CPU::RAM::real_size;
-                REQUIRE(ram.read_byte(i) == ram.read_byte(mirrored_adress));
+                CHECK(ram.read_byte(i) == ram.read_byte(mirrored_adress));
         }
+}
+
+void check_nametable_mirroring(Emulator::VRAM& vram)
+{
+        for (Emulator::Address i = 0x2000; i < 0x2EFF; ++i)
+                CHECK(vram.read_byte(i) == vram.read_byte(i + 0x1000));
 }
 
 }
@@ -89,7 +95,7 @@ TEST_CASE("Emulator::CPU::RAM tests")
 
         SECTION("Mirrored reading works")
         {
-                require_mirrored_reading_works(ram);
+                check_ram_mirroring(ram);
         }
 
         SECTION("Mirrored writing works")
@@ -101,7 +107,7 @@ TEST_CASE("Emulator::CPU::RAM tests")
                         ram.write_byte(i, static_cast<Emulator::Byte>((i % 256) + 1));
                 }
 
-                require_mirrored_reading_works(ram);
+                check_ram_mirroring(ram);
         }
 }
 
@@ -133,10 +139,125 @@ TEST_CASE("CPU::AccessibleMemory tests")
         }
 }
 
-TEST_CASE("VRAM tests")
+TEST_CASE("VRAM pattern tables tests")
 {
-        // TODO
+        Emulator::VRAM vram(Emulator::Mirroring::horizontal);
+        for (Emulator::Address i = 0; i < 0x2000; ++i)
+                vram.write_byte(i, static_cast<Emulator::Byte>(i));
+        for (Emulator::Address i = 0; i < 0x2000; ++i)
+                CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i));
 }
+
+TEST_CASE("VRAM horizontal mirroring nametables tests")
+{
+        Emulator::VRAM vram(Emulator::Mirroring::horizontal);
+        
+        SECTION("Writing to first nametable and reading from second")
+        {
+                for (Emulator::Address i = 0x2000; i < 0x2400; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i));
+                for (Emulator::Address i = 0x2400; i < 0x2800; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to second nametable and reading from first")
+        {
+                for (Emulator::Address i = 0x2400; i < 0x2800; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 1));
+                for (Emulator::Address i = 0x2000; i < 0x2400; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 1));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to third nametable and reading from fourth")
+        {
+                for (Emulator::Address i = 0x2800; i < 0x2C00; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 2));
+                for (Emulator::Address i = 0x2C00; i < 0x3000; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 2));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to fourth nametable and reading from third")
+        {
+                for (Emulator::Address i = 0x2800; i < 0x2C00; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 3));
+                for (Emulator::Address i = 0x2C00; i < 0x3000; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 3));
+                check_nametable_mirroring(vram);
+        }
+}
+
+TEST_CASE("VRAM vertical mirroring nametables tests")
+{
+        Emulator::VRAM vram(Emulator::Mirroring::vertical);
+
+        SECTION("Writing to first nametable and reading from third")
+        {
+                for (Emulator::Address i = 0x2800; i < 0x2C00; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i));
+                for (Emulator::Address i = 0x2000; i < 0x2400; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to third nametable and reading from first")
+        {
+                for (Emulator::Address i = 0x2800; i < 0x2C00; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 1));
+                for (Emulator::Address i = 0x2000; i < 0x2400; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 1));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to second nametable and reading from fourth")
+        {
+                for (Emulator::Address i = 0x2400; i < 0x2800; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 2));
+                for (Emulator::Address i = 0x2C00; i < 0x3000; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 2));
+                check_nametable_mirroring(vram);
+        }
+
+        SECTION("Writing to fourth nametable and reading from second")
+        {
+                for (Emulator::Address i = 0x2C00; i < 0x3000; ++i)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i + 2));
+                for (Emulator::Address i = 0x2400; i < 0x2800; ++i)
+                        CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i + 2));
+                check_nametable_mirroring(vram);
+        }
+}
+
+TEST_CASE("VRAM four-screen mirroring nametables tests")
+{
+        Emulator::VRAM vram(Emulator::Mirroring::four_screen);
+        for (Emulator::Address i = 0; i < 0x3000; ++i)
+                vram.write_byte(i, static_cast<Emulator::Byte>(i % 254));
+        for (Emulator::Address i = 0; i < 0x3000; ++i)
+                CHECK(vram.read_byte(i) == static_cast<Emulator::Byte>(i % 254));
+        check_nametable_mirroring(vram);
+}
+
+/*
+TEST_CASE("VRAM palette tests")
+{
+        Emulator::VRAM vram(Emulator::Mirroring::horizontal);
+
+        vram.write_byte(0x3F00, 0x69);
+        for (Emulator::Address i = 0; i < 0x3F20; ++i) {
+                if (i % 4 != 0)
+                        vram.write_byte(i, static_cast<Emulator::Byte>(i));
+        }
+        for (Emulator::Address i = 0; i < 0x3F20; ++i) {
+                if (i % 4 == 0)
+                        CHECK(vram.read_byte(i) == 0x68);
+                else
+                        CHECK(vram.read_byte(i) == (static_cast<Emulator::Byte>(i) & 0x3F));
+        }
+}
+*/
 
 TEST_CASE("DoubleRegister tests")
 {
@@ -287,6 +408,11 @@ TEST_CASE("PPU registers tests")
                 CHECK(ppu.show_leftmost_sprites());
                 CHECK(!ppu.show_background());
                 CHECK(ppu.show_sprites());
+        }
+
+        SECTION("Status register")
+        {
+                // TODO
         }
 }
 
