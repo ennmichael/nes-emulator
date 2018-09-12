@@ -240,24 +240,24 @@ TEST_CASE("VRAM four-screen mirroring nametables tests")
         check_nametable_mirroring(vram);
 }
 
-/*
 TEST_CASE("VRAM palette tests")
 {
         Emulator::VRAM vram(Emulator::Mirroring::horizontal);
 
         vram.write_byte(0x3F00, 0x69);
-        for (Emulator::Address i = 0; i < 0x3F20; ++i) {
+        for (Emulator::Address i = 0x3F00; i < 0x3F20; ++i) {
                 if (i % 4 != 0)
                         vram.write_byte(i, static_cast<Emulator::Byte>(i));
         }
-        for (Emulator::Address i = 0; i < 0x3F20; ++i) {
+        for (Emulator::Address i = 0x3F00; i < 0x3F20; ++i) {
                 if (i % 4 == 0)
-                        CHECK(vram.read_byte(i) == 0x68);
+                        CHECK(vram.read_byte(i) == 0x29);
                 else
                         CHECK(vram.read_byte(i) == (static_cast<Emulator::Byte>(i) & 0x3F));
         }
+        for (Emulator::Address i = 0x3F20; i < 0x4000; ++i)
+                CHECK(vram.read_byte(i) == vram.read_byte(0x3F00 + (i % 0x20)));
 }
-*/
 
 TEST_CASE("DoubleRegister tests")
 {
