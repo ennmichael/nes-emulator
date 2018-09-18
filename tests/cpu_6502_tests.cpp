@@ -41,9 +41,9 @@ private:
                 auto const reset_handler_address =
                         CPU::interrupt_handler_address(CPU::Interrupt::reset);
                 if (address == reset_handler_address)
-                        return Emulator::Utils::low_byte(program_start);
+                        return Emulator::low_byte(program_start);
                 else if (address == reset_handler_address + 1)
-                        return Emulator::Utils::high_byte(program_start);
+                        return Emulator::high_byte(program_start);
                 return RAM::read_byte_impl(address);
         }
 };

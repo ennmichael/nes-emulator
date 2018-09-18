@@ -23,7 +23,7 @@ Address deref_pointer(ReadableMemory& memory, Address address)
 }
 
 UnknownOpcode::UnknownOpcode(Byte opcode) noexcept
-        : runtime_error("Unknown opcode "s + Utils::format_hex(opcode, 2) + "."s)
+        : runtime_error("Unknown opcode "s + format_hex(opcode, 2) + "."s)
 {}
 
 bool CPU::RAM::address_is_accessible(Address address) noexcept
@@ -341,7 +341,7 @@ struct CPU::Impl {
 
         void update_negative_flag(unsigned result) noexcept
         {
-                p.set(negative_flag, Utils::bit(result, sign_bit));
+                p.set(negative_flag, get_bit(result, sign_bit));
         } 
 
         bool bcs() const noexcept
@@ -420,7 +420,7 @@ struct CPU::Impl {
         Byte asl(Byte operand) noexcept
         {
                 Byte const result = operand << 1;
-                p.set(carry_flag, Utils::bit(operand, sign_bit));
+                p.set(carry_flag, get_bit(operand, sign_bit));
                 update_transfer_flags(result);
                 return result;
         }
@@ -543,7 +543,7 @@ struct CPU::Impl {
         Byte lsr(Byte operand) noexcept
         {
                 Byte const result = operand >> 1;
-                p.set(carry_flag, Utils::bit(operand, 0));
+                p.set(carry_flag, get_bit(operand, 0));
                 update_transfer_flags(result);
                 return result;
         }
@@ -587,7 +587,7 @@ struct CPU::Impl {
                         return bits.to_ulong();
                 }();
 
-                p.set(carry_flag, Utils::bit(operand, sign_bit));
+                p.set(carry_flag, get_bit(operand, sign_bit));
                 update_transfer_flags(result);
                 return result;
         }
@@ -602,7 +602,7 @@ struct CPU::Impl {
                         return bits.to_ulong();
                 }();
 
-                p.set(carry_flag, Utils::bit(operand, 0));
+                p.set(carry_flag, get_bit(operand, 0));
                 update_transfer_flags(result);
                 return result;
         }

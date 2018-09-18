@@ -12,8 +12,20 @@ using namespace std::string_literals;
 
 namespace {
 
-void main_loop(Emulator::CPU& cpu, Emulator::PPU& ppu)
+void main_loop(Emulator::KeyBindings key_bindings)
 {
+        /**
+         * A vblank occurs 60 times per second.
+         * Inbetween vblanks, the emulator will execute at least 10 instructions.
+         */
+        Emulator::JoypadMemory joypad_memory(Sdl::get_keyboard_state(), key_bindings);
+        Emulator::Cartridge cartridge(argv[1]);
+        auto memory_mapper = Emulator::MemoryMapper::make(cartridge);
+        auto ram = std::make_unique<Emulator::CPU::RAM>();
+        auto ppu = std::make_unique<Emulator::PPU>(cartridge.mirroring(), *ram);
+        auto cpu = std::make_unique<Emulator::CPU>(
+                Emulator::CPU::AccessibleMemory::Pieces{ram.get(), ppu.get(),
+                                                        memory_mapper.get(), &joypad_memory});
         for (;;) {
 
         }
@@ -28,10 +40,7 @@ int main(int argc, char** argv)
                 return 1;
         }
 
-        Sdl::InitGuard init_guard;
-        (void)init_guard;
-
-        Emulator::KeyBindings const key_bindings {
+        Emulator::KeyBindings const key_bindings {  // Could read this from a config file if I wanted to
                 {Emulator::JoypadButton::b, Sdl::Scancode::a},
                 {Emulator::JoypadButton::a, Sdl::Scancode::s},
                 {Emulator::JoypadButton::select, Sdl::Scancode::enter},
@@ -42,14 +51,6 @@ int main(int argc, char** argv)
                 {Emulator::JoypadButton::right, Sdl::Scancode::right}
         };
 
-        auto keyboard_state = Sdl::get_keyboard_state();
-        Emulator::JoypadMemory joypad_memory(keyboard_state, key_bindings);
-        Emulator::Cartridge cartridge(argv[1]);
-        auto memory_mapper = Emulator::MemoryMapper::make(cartridge);
-        auto ram = std::make_unique<Emulator::CPU::RAM>();
-        auto ppu = std::make_unique<Emulator::PPU>(cartridge.mirroring(), *ram);
-        auto cpu = std::make_unique<Emulator::CPU>(
-                Emulator::CPU::AccessibleMemory::Pieces{ram.get(), ppu.get(),
-                                                        memory_mapper.get(), &joypad_memory});
+        main_loop(key_bindings);
 }
 

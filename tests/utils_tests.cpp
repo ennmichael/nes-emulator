@@ -23,21 +23,21 @@ std::array constexpr address_examples {
 
 }
 
-TEST_CASE("Utils::split_bytes works")
+TEST_CASE("split_bytes works")
 {
         for (auto const& [low, high, address] : address_examples) {
                 auto const& [calculated_low, calculated_high] =
-                        Emulator::Utils::split_bytes(address);
+                        Emulator::split_bytes(address);
 
                 CHECK(calculated_low == low);
                 CHECK(calculated_high == high);
         }
 }
 
-TEST_CASE("Utils::combine_bytes works")
+TEST_CASE("combine_bytes works")
 {
         for (auto const& [low, high, address] : address_examples)
-                CHECK(Emulator::Utils::combine_bytes(low, high) == address);
+                CHECK(Emulator::combine_bytes(low, high) == address);
 }
 
 TEST_CASE("TwosComplement::encode works")

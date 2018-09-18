@@ -12,7 +12,7 @@ namespace TwosComplement {
 
 int encode(Byte value) noexcept
 {
-        if (Utils::bit(value, sign_bit))
+        if (get_bit(value, sign_bit))
                 return -1 - static_cast<Byte>(~static_cast<unsigned>(value));
         else
                 return value;
@@ -29,11 +29,11 @@ Byte decode(int value) noexcept
 }
 
 InvalidRead::InvalidRead(Address address) noexcept
-        : runtime_error("Can't read byte at address "s + Utils::format_hex(address))
+        : runtime_error("Can't read byte at address "s + format_hex(address))
 {}
 
 InvalidWrite:: InvalidWrite(Address address) noexcept
-        : runtime_error("Can't write byte to address "s + Utils::format_hex(address))
+        : runtime_error("Can't write byte to address "s + format_hex(address))
 {}
 
 bool ReadableMemory::address_is_readable(Address address) const noexcept
@@ -52,7 +52,7 @@ Address ReadableMemory::read_pointer(Address address)
 {
         Byte const low = read_byte(address);
         Byte const high = read_byte(address + 1);
-        return Utils::combine_bytes(low, high);
+        return combine_bytes(low, high);
 }
 
 bool Memory::address_is_writable(Address address) const noexcept
@@ -69,12 +69,10 @@ void Memory::write_byte(Address address, Byte byte)
 
 void Memory::write_pointer(Address address, Address pointer)
 {
-        auto const& [low, high] = Utils::split_bytes(pointer);
+        auto const& [low, high] = split_bytes(pointer);
         write_byte(address, low);
         write_byte(address + 1, high);
 }
-
-namespace Utils {
 
 CantOpenFile::CantOpenFile(std::string const& path)
         : runtime_error("Can't open file "s + path)
@@ -89,7 +87,7 @@ std::vector<Byte> read_bytes(std::string const& path)
         if (!ifstream.is_open())
                 throw CantOpenFile(path);
 
-        return Utils::read_bytes(ifstream);
+        return read_bytes(ifstream);
 }
 
 std::vector<Byte> read_bytes(std::ifstream& ifstream)
@@ -137,8 +135,6 @@ Address combine_bytes(BytePair byte_pair) noexcept
 {
         auto const& [low, high] = byte_pair;
         return combine_bytes(low, high);
-}
-
 }
 
 }

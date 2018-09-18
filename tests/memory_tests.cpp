@@ -412,7 +412,22 @@ TEST_CASE("PPU registers tests")
 
         SECTION("Status register")
         {
-                // TODO
+                // TODO Implement sprite #0 hit and the vblank flag (the status register)
         }
+}
+
+TEST_CASE("PPU background painting tests")
+{
+        // TODO
+}
+
+TEST_CASE("PPU sprite paining tests")
+{
+        // TODO
+}
+
+TEST_CASE("PPU screen painting tests")
+{
+        // TODO
 }
 

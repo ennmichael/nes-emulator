@@ -81,6 +81,6 @@ TEST_CASE("Loading a cartridge with a bad footprint should fail")
 TEST_CASE("Loading a cartridge that doesn't exist on disk should fail")
 {
         REQUIRE_THROWS_AS(Emulator::Cartridge("this shouldn't exist"s),
-                          Emulator::Utils::CantOpenFile);
+                          Emulator::CantOpenFile);
 }
 

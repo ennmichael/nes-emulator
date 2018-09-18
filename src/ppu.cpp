@@ -1,6 +1,7 @@
 // vim: set shiftwidth=8 tabstop=8:
 
 #include <cassert>
+#include <algorithm>
 #include "ppu.h"
 
 using namespace std::string_literals;
@@ -10,21 +11,6 @@ namespace Emulator {
 VRAM::VRAM(Mirroring mirroring) noexcept
     : mirroring_(mirroring)
 {}
-
-Tile VRAM::read_tile(Address address)
-{
-        Tile tile {0};
-        for (unsigned y = 0; y < 8; ++y) {
-                Byte const first_plane = read_byte(address + y);
-                Byte const second_plane = read_byte(address + y + 1);
-                for (unsigned x = 0; x < 8; ++x) {
-                        Byte const first_bit = Utils::bit(first_plane, x);
-                        Byte const second_bit = Utils::bit(second_plane, x);
-                        tile[y][x] = first_bit + second_bit;
-                }
-        }
-        return tile;
-}
 
 bool VRAM::address_is_writable_impl(Address) const noexcept
 {
@@ -96,7 +82,7 @@ bool Sprite::flip_horizontally() const noexcept
         return attributes.test(6);
 }
 
-Byte Sprite::color() const noexcept
+Byte Sprite::palette_index() const noexcept
 {
         return attributes.test(0) | (attributes.test(1) << 1);
 }
@@ -127,12 +113,12 @@ Address DoubleRegister::read_address() const noexcept
 
 Byte DoubleRegister::read_low_byte() const noexcept
 {
-        return Utils::low_byte(value_);
+        return low_byte(value_);
 }
 
 Byte DoubleRegister::read_high_byte() const noexcept
 {
-        return Utils::high_byte(value_);
+        return high_byte(value_);
 }
 
 bool DoubleRegister::complete() const noexcept
@@ -156,10 +142,14 @@ PPU::PPU(Mirroring mirroring, ReadableMemory& dma_memory) noexcept
 {}
 
 void PPU::vblank_started()
-{}
+{
+        status_.set(vblank_flag);
+}
 
 void PPU::vblank_finished()
-{}
+{
+        status_.set(vblank_flag);
+}
 
 Address PPU::base_name_table_address() const noexcept
 {
@@ -219,11 +209,18 @@ bool PPU::show_sprites() const noexcept
         return mask_.test(4);
 }
 
-Screen PPU::screen()
+bool PPU::in_vblank() const noexcept
+{
+        return status_.test(vblank_flag);
+}
+
+Screen PPU::paint_screen()
 {
         Screen screen {0};
         if (show_background())
                 paint_background(screen);
+        if (show_sprites())
+                paint_sprites(screen);
         return screen;
 }
 
@@ -311,29 +308,23 @@ Byte PPU::read_byte_impl(Address address)
         }
 }
 
-void PPU::paint_background(Screen& screen) noexcept
+void PPU::paint_background(Screen& screen)
 {
-        // FIXME This doesn't respect show_leftmost_background
-        auto const draw_tile = [&](Byte palette, Address tile_address)
+        auto const paint_4x4_tile_square = [&](Byte palette_index, Byte tile_index)
         {
-                auto const tile = vram_.read_tile(tile_address);
-                unsigned const x = tile_address % 32;
-                unsigned const y = (tile_address - x) / 32;
-                for (unsigned y_offset = 0; y_offset < tile_height; ++y_offset) {
-                        for (unsigned x_offset = 0; x_offset < tile_width; ++x_offset) {
-                                Byte const palette_index = tile[y_offset][x_offset] | (palette << 2);
-                                Byte const color = vram_.read_byte(VRAM::background_palette_start + palette_index);
-                                screen[x][y] = color;
-                        }
-                }
-        };
+                auto const paint_tile = [&](Address tile_address)
+                {
+                        Tile const tile = read_tile(tile_address);
+                        Byte const x = tile_address % 32;
+                        Byte const y = (tile_address - x) % 32;
+                        paint_background_tile(screen, VRAM::background_palette_start, palette_index, x, y, tile);
+                };
 
-        auto const draw_4x4_tile_square = [&](Byte palette, Address upper_left_tile_address)
-        {
-                draw_tile(palette, upper_left_tile_address);
-                draw_tile(palette, upper_left_tile_address + 1);
-                draw_tile(palette, upper_left_tile_address + 32);
-                draw_tile(palette, upper_left_tile_address + 32 + 1);
+                Address const upper_left_tile_address = background_tile_address(tile_index);
+                paint_tile(upper_left_tile_address);
+                paint_tile(upper_left_tile_address + 1);
+                paint_tile(upper_left_tile_address + 32);
+                paint_tile(upper_left_tile_address + 32 + 1);
         };
 
         Address const name_table_address = base_name_table_address();
@@ -342,20 +333,74 @@ void PPU::paint_background(Screen& screen) noexcept
              attribute_address < attribute_table_address + VRAM::attribute_table_size;
              ++attribute_address) {
                 Address const attribute_byte = vram_.read_byte(attribute_address);
-                Address const base_tile_address = attribute_address - VRAM::name_table_size +
-                                                  4 * (attribute_address - attribute_table_address) -
-                                                  VRAM::pattern_table_size - background_pattern_table_address();
-                draw_4x4_tile_square(attribute_byte & 0x03, base_tile_address);
-                draw_4x4_tile_square((attribute_byte >> 2) & 0x03, base_tile_address + 2);
-                draw_4x4_tile_square((attribute_byte >> 4) & 0x03, base_tile_address + 64);
-                draw_4x4_tile_square((attribute_byte >> 6) & 0x03, base_tile_address + 64 + 2);
+                Address const name_table_address = attribute_address - VRAM::name_table_size +
+                                                  4 * (attribute_address - attribute_table_address);
+                paint_4x4_tile_square(attribute_byte & 0x03, vram_.read_byte(name_table_address));
+                paint_4x4_tile_square((attribute_byte >> 2) & 0x03, vram_.read_byte(name_table_address + 2));
+                paint_4x4_tile_square((attribute_byte >> 4) & 0x03, vram_.read_byte(name_table_address + 64));
+                paint_4x4_tile_square((attribute_byte >> 6) & 0x03, vram_.read_byte(name_table_address + 64 + 2));
         }
 }
 
+Address PPU::background_tile_address(Byte tile_index) noexcept
+{
+        return background_pattern_table_address() + tile_index;
+}
+
+Tile PPU::read_tile(Address tile_address)
+{
+        Tile tile {0};
+        for (unsigned y = 0; y < 8; ++y) {
+                Byte const first_plane = vram_.read_byte(tile_address + y);
+                Byte const second_plane = vram_.read_byte(tile_address + y + 1);
+                for (unsigned x = 0; x < 8; ++x) {
+                        bool const first_bit = get_bit(first_plane, x);
+                        bool const second_bit = get_bit(second_plane, x);
+                        tile[y][x] = first_bit + second_bit;
+                }
+        }
+        return tile;
+}
+
+Sprites PPU::read_sprites()
+{
+        Sprites sprites {0};
+        for (unsigned i = 0; i < oam_size / sprite_size; ++i) {
+                Address const address = i * sprite_size;
+                sprites[i] = Sprite {
+                        .y = vram_.read_byte(address),
+                        .tile_index = vram_.read_byte(address + 1),
+                        .attributes = vram_.read_byte(address + 2),
+                        .x = vram_.read_byte(address + 3)
+                };
+        }
+        return sprites;
+}
+
+void PPU::paint_sprites(Screen& screen)
+{}
+
+// Possibly difficult: how to reuse code when painting sprites
+
+void PPU::paint_background_tile(Screen& screen, Address palette_address,
+                                Byte high_palette_index_bits, Byte x, Byte y, Tile const& tile)
+{
+        for (unsigned y_offset = 0; y_offset < tile_height; ++y_offset) {
+                for (unsigned x_offset = 0; x_offset < tile_width; ++x_offset) {
+                        Byte const palette_index = tile[y_offset][x_offset] | (high_palette_index_bits << 2);
+                        Byte const color = vram_.read_byte(palette_address + palette_index);
+                        screen[x][y] = color;
+                }
+        }
+}
+
+/* TODO
+ * Possibly correct code, but currently unused
 Byte PPU::sprite_color(unsigned palette_index) noexcept
 {
         return vram_.read_byte(VRAM::background_palette_start + palette_index);
 }
+*/
 
 void PPU::increment_oam_address() noexcept
 {

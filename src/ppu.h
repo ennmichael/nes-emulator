@@ -8,6 +8,18 @@
 
 namespace Emulator {
 
+template <class T, std::size_t W1, std::size_t W2, std::size_t H1, std::size_t H2>
+void insert_matrix(Matrix<T, W1, H1> const& source,
+                   Matrix<T, W2, H2>& destination,
+                   std::size_t x = 0, std::size_t y = 0) noexcept
+{
+        for (std::size_t i = 0; i < W1; ++i) {
+                for (std::size_t j = 0; j < H1; ++j) {
+                        destination[j + y][i + x] = source[j][i];
+                }
+        }
+}
+
 std::size_t constexpr tile_width = 8;
 std::size_t constexpr tile_height = 8;
 using Tile = Matrix<Byte, tile_width, tile_height>;
@@ -48,8 +60,6 @@ public:
 
         explicit VRAM(Mirroring mirroring) noexcept;
 
-        Tile read_tile(Address address);
-
 protected:
         bool address_is_writable_impl(Address address) const noexcept override;
         bool address_is_readable_impl(Address address) const noexcept override;
@@ -80,11 +90,17 @@ private:
         std::array<Byte, palettes_real_size> palettes_ {0};
 };
 
+std::size_t constexpr screen_width = 256;
+std::size_t constexpr screen_height = 240;
+using Screen = Matrix<Byte, screen_width, screen_height>;
+
+constexpr unsigned sprite_size = 4;
+
 struct Sprite {
-        Byte x = 0;
         Byte y = 0;
         Byte tile_index = 0;
         ByteBitset attributes = 0;
+        Byte x = 0;
 
         enum class Priority {
                 beneath_background,
@@ -94,15 +110,13 @@ struct Sprite {
         Priority priority() const noexcept;
         bool flip_vertically() const noexcept;
         bool flip_horizontally() const noexcept;
-        Byte color() const noexcept; // TODO This is actually a pallete index
+        Byte palette_index() const noexcept;
 };
+
+using Sprites = std::array<Sprite, 64>;
 
 static Address constexpr oam_size = 0x0100;
 using OAM = std::array<Byte, oam_size>;
-
-std::size_t constexpr screen_width = 256;
-std::size_t constexpr screen_height = 240;
-using Screen = Matrix<Byte, screen_width, screen_height>;
 
 class DoubleRegister {
 public:
@@ -137,6 +151,7 @@ public:
         static unsigned constexpr sprite_width = 8;
         static unsigned constexpr background_square_size = 16;
         static unsigned constexpr background_tile_size = 8;
+        static unsigned constexpr vblank_flag = 7;
 
         PPU(Mirroring mirroring, ReadableMemory& dma_memory) noexcept;
 
@@ -154,8 +169,9 @@ public:
         bool show_leftmost_sprites() const noexcept;
         bool show_background() const noexcept;
         bool show_sprites() const noexcept;
+        bool in_vblank() const noexcept;
 
-        Screen screen();
+        Screen paint_screen();
 
 protected:
         bool address_is_writable_impl(Address address) const noexcept override;
@@ -164,9 +180,14 @@ protected:
         Byte read_byte_impl(Address address) override;
         
 private:
-        void paint_background(Screen& screen) noexcept;
-        Byte sprite_color(unsigned palette_index) noexcept; // Do I need this?
-
+        void paint_background(Screen& screen);
+        Address background_tile_address(Byte tile_index) noexcept;
+        Address sprite_tile_address(Byte tile_index) noexcept;
+        Tile read_tile(Address tile_address);
+        Sprites read_sprites();
+        void paint_sprites(Screen& screen);
+        void paint_background_tile(Screen& screen, Address palette_address, Byte high_palette_index_bits,
+                                   Byte x, Byte y, Tile const& tile);
         void increment_oam_address() noexcept;
         void increment_vram_address() noexcept;
         void execute_dma(Byte source);

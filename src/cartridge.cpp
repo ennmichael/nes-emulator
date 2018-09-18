@@ -13,7 +13,7 @@ MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
 {}
 
 Cartridge::Cartridge(std::string const& path)
-        : Cartridge(Utils::read_bytes(path))
+        : Cartridge(read_bytes(path))
 {}
 
 Cartridge::Cartridge(std::vector<Byte> data)

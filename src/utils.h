@@ -16,6 +16,7 @@
 #include <memory>
 #include <iomanip>
 #include <sstream>
+#include <iterator>
 
 namespace Emulator {
 
@@ -31,7 +32,7 @@ static_assert(endianness == Endianness::little, "Not little-endian.");
 /**
  * I could probably add big-endian support. Currently, I have no way to
  * test this working, so I'm not adding it yet. Ideally, I'd only have to change
- * Utils::split_byte and Utils::combine_bytes. The changes should
+ * split_byte and combine_bytes. The changes should
  * be fairly easy.
  */
 
@@ -96,8 +97,6 @@ protected:
         virtual void write_byte_impl(Address, Byte byte) = 0;
 };
 
-namespace Utils {
-
 class CantOpenFile : public std::runtime_error {
 public:
         explicit CantOpenFile(std::string const& path);
@@ -119,7 +118,7 @@ std::vector<Byte> read_bytes(std::string const& path);
 std::vector<Byte> read_bytes(std::ifstream& ifstream);
 
 template <class T>
-bool bit(T t, unsigned bit_num) noexcept
+bool get_bit(T t, unsigned bit_num) noexcept
 {
         static_assert(std::is_unsigned_v<T>);
         return AutoBitset<T>(t).test(bit_num);
@@ -144,8 +143,6 @@ Byte high_byte(Address address) noexcept;
 BytePair split_bytes(Address address) noexcept;
 Address combine_bytes(Byte low, Byte high) noexcept;
 Address combine_bytes(BytePair byte_pair) noexcept;
-
-}
 
 }
 
