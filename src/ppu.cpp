@@ -106,7 +106,7 @@ void DoubleRegister::increment(Address offset) noexcept
         value_ += offset;
 }
 
-Address DoubleRegister::read_address() const noexcept
+Address DoubleRegister::read_whole() const noexcept
 {
         return value_;
 }
@@ -151,6 +151,21 @@ void PPU::vblank_finished()
         status_.set(vblank_flag);
 }
 
+Byte PPU::read_vram_byte(Address address)
+{
+        return vram_.read_byte(address);
+}
+
+Byte PPU::read_oam_byte(Address address)
+{
+        return oam_[address];
+}
+
+Address PPU::read_vram_address_register() const noexcept
+{
+        return vram_address_.read_whole();
+}
+
 Address PPU::base_name_table_address() const noexcept
 {
         Address const mult = control_.to_ulong() & 0x03;
@@ -159,7 +174,7 @@ Address PPU::base_name_table_address() const noexcept
         return VRAM::name_tables_start + offset;
 }
 
-Address PPU::address_increment_offset() const noexcept
+Address PPU::vram_address_increment_offset() const noexcept
 {
         return (control_.test(2)) ? 0x0020 : 0x0001;
 }
@@ -214,7 +229,7 @@ bool PPU::in_vblank() const noexcept
         return status_.test(vblank_flag);
 }
 
-Screen PPU::paint_screen()
+Screen PPU::current_screen()
 {
         Screen screen {0};
         if (show_background())
@@ -260,6 +275,7 @@ void PPU::write_byte_impl(Address address, Byte byte)
 
                 case oam_data_register:
                         oam_[oam_address_] = byte;
+                        increment_oam_address();
                         break;
 
                 case scroll_register:
@@ -271,7 +287,8 @@ void PPU::write_byte_impl(Address address, Byte byte)
                         break;
 
                 case vram_data_register:
-                        vram_.write_byte(vram_address_.read_address(), byte);
+                        vram_.write_byte(vram_address_.read_whole(), byte);
+                        increment_vram_address();
                         break;
 
                 default:
@@ -287,17 +304,15 @@ Byte PPU::read_byte_impl(Address address)
                         return status_.to_ulong();
 
                 case oam_data_register:
-                        {
-                                Byte const result = oam_[oam_address_];
-                                increment_oam_address();
-                                return result;
-                        }
+                        return oam_[oam_address_];
 
                 case vram_data_register:
                         {
+                                // This behaviour isn't 100% correct, because reading
+                                // further than 0x3EFF shouldn't read palette memory;
+                                // it should wrap back. For now, I don't really care.
                                 Byte const result = vram_data_buffer_;
-                                vram_data_buffer_ =
-                                        vram_.read_byte(vram_address_.read_address());
+                                vram_data_buffer_ = vram_.read_byte(vram_address_.read_whole());
                                 increment_vram_address();
                                 return result;
                         }
@@ -404,12 +419,12 @@ Byte PPU::sprite_color(unsigned palette_index) noexcept
 
 void PPU::increment_oam_address() noexcept
 {
-        oam_address_ += address_increment_offset();
+        ++oam_address_;
 }
 
 void PPU::increment_vram_address() noexcept
 {
-        vram_address_.increment(address_increment_offset());
+        vram_address_.increment(vram_address_increment_offset());
 }
 
 void PPU::execute_dma(Byte source)

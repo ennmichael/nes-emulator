@@ -135,5 +135,15 @@ OptionalEvent poll_event()
         return std::nullopt;
 }
 
+Ticks get_ticks() noexcept
+{
+        return SDL_GetTicks();
+}
+
+bool quit_requested() noexcept
+{
+        return SDL_QuitRequested();
+}
+
 }
 

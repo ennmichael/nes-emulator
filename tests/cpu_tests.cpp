@@ -1,6 +1,7 @@
 // vim: set shiftwidth=8 tabstop=8:
 
 #include "catch.hpp"
+#include "mem.h"
 #include "../src/utils.h"
 #include "../src/cpu.h"
 #include <utility>
@@ -12,11 +13,21 @@
 
 namespace {
 
+void check_ram_mirroring(Emulator::CPU::RAM& ram)
+{
+        for (unsigned i = Emulator::CPU::RAM::start + Emulator::CPU::RAM::real_size;
+             i < Emulator::CPU::RAM::end;
+             ++i) {
+                auto const mirrored_adress = i - Emulator::CPU::RAM::real_size;
+                CHECK(ram.read_byte(i) == ram.read_byte(mirrored_adress));
+        }
+}
+
 unsigned constexpr program_start = 0x0600u;
 
-class TestMemory : public Emulator::CPU::RAM {
+class ExampleMemory : public Emulator::CPU::RAM {
 public:
-        explicit TestMemory(std::vector<Emulator::Byte> const& program)
+        explicit ExampleMemory(std::vector<Emulator::Byte> const& program)
         {
                 for (unsigned i = 0; i < program.size(); ++i) {
                         auto const byte = program[i];
@@ -48,16 +59,83 @@ private:
         }
 };
 
-std::unique_ptr<Emulator::CPU> execute_example_program(TestMemory& test_memory,
+std::unique_ptr<Emulator::CPU> execute_example_program(ExampleMemory& example_memory,
                                                        std::size_t program_size)
 {
         auto cpu = std::make_unique<Emulator::CPU>(
-                Emulator::CPU::AccessibleMemory::Pieces {&test_memory});
+                Emulator::CPU::AccessibleMemory::Pieces {&example_memory});
         while (cpu->pc() != program_start + program_size)
                 cpu->execute_instruction();
         return cpu;
 }
 
+}
+
+TEST_CASE("Emulator::CPU::RAM tests")
+{
+        Emulator::CPU::RAM ram;
+
+        for (unsigned i = Emulator::CPU::RAM::start;
+             i < Emulator::CPU::RAM::start + Emulator::CPU::RAM::real_size;
+             ++i) {
+                unsigned const value = i % Emulator::byte_max;
+                ram.write_byte(i, static_cast<Emulator::Byte>(value));
+        }
+
+        SECTION("Reading and writing works")
+        {
+                for (unsigned i = Emulator::CPU::RAM::start;
+                     i < Emulator::CPU::RAM::start + Emulator::CPU::RAM::real_size;
+                     ++i) {
+                        unsigned const value = i % Emulator::byte_max;
+                        REQUIRE(ram.read_byte(i) == value);
+                }
+        }
+
+        SECTION("Mirrored reading works")
+        {
+                check_ram_mirroring(ram);
+        }
+
+        SECTION("Mirrored writing works")
+        {
+                for (unsigned i = Emulator::CPU::RAM::start + 
+                                  Emulator::CPU::RAM::real_size;
+                     i < Emulator::CPU::RAM::end;
+                     ++i) {
+                        ram.write_byte(i, static_cast<Emulator::Byte>((i % 256) + 1));
+                }
+
+                check_ram_mirroring(ram);
+        }
+}
+
+TEST_CASE("CPU::AccessibleMemory tests")
+{
+        unsigned constexpr size = 100;
+        TestMemory<size> first_piece(0);
+        TestMemory<size> second_piece(size);
+        Emulator::CPU::AccessibleMemory accessible_memory({&first_piece, &second_piece});
+        
+        for (Emulator::Address i = 0; i < size * 2; ++i) {
+                accessible_memory.write_byte(i, static_cast<Emulator::Byte>(i));
+        }
+
+        for (Emulator::Address i = 0; i < size; ++i) {
+                CHECK(accessible_memory.read_byte(i) == static_cast<Emulator::Byte>(i));
+                CHECK(first_piece.read_byte(i) == static_cast<Emulator::Byte>(i));
+                CHECK(accessible_memory.read_byte(i + size) == static_cast<Emulator::Byte>(i + size));
+                CHECK(second_piece.read_byte(i + size) == static_cast<Emulator::Byte>(i + size));
+        }
+
+        for (Emulator::Address i = 0; i < size; ++i) {
+                first_piece.write_byte(i, static_cast<Emulator::Byte>(i * 2));
+                second_piece.write_byte(i + size, static_cast<Emulator::Byte>((i + size) * 2));
+        }
+
+        for (Emulator::Address i = 0; i < size * 2; ++i) {
+                CHECK(accessible_memory.read_byte(i) == static_cast<Emulator::Byte>(i * 2));
+        }
 }
 
 TEST_CASE("6502 instructions tests")
@@ -74,8 +152,8 @@ TEST_CASE("6502 instructions tests")
                         0xA9, 0x01, 0xA2, 0x02, 0xA0, 0x03
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x01);
                 CHECK(cpu->x() == 0x02);
@@ -136,8 +214,8 @@ TEST_CASE("6502 instructions tests")
                         0x04
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0xDD);
                 CHECK(cpu->x() == 0x05);
@@ -218,8 +296,8 @@ TEST_CASE("6502 instructions tests")
                         0xA9, 0x11, 0x48, 0xA9, 0x00, 0x48, 0x08, 0x68, 0x28
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x22);
                 CHECK(cpu->x() == 0x00);
@@ -340,8 +418,8 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x69, 0x01, 0x48, 0x08, 0x69, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0xA3);
                 CHECK(cpu->x() == 0x00);
@@ -526,8 +604,8 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0x48, 0xE9, 0x01, 0x08, 0x48, 0xE9, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x5B);
                 CHECK(cpu->x() == 0x00);
@@ -680,8 +758,8 @@ TEST_CASE("6502 instructions tests")
                         0x31, 0x41, 0x08, 0x48
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x02);
                 CHECK(cpu->x() == 0x30);
@@ -788,8 +866,8 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xDE, 0xFD, 0x03, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x42);
                 CHECK(cpu->x() == 0x02);
@@ -869,8 +947,8 @@ TEST_CASE("6502 instructions tests")
                         0x08, 0xFE, 0xFD, 0x03, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x42);
                 CHECK(cpu->x() == 0x02);
@@ -940,8 +1018,8 @@ TEST_CASE("6502 instructions tests")
                         0x42, 0x9A, 0x08, 0x48
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x22);
                 CHECK(cpu->x() == 0x42);
@@ -1005,8 +1083,8 @@ TEST_CASE("6502 instructions tests")
                         0x1E, 0x00, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x2C);
                 CHECK(cpu->x() == 0x02);
@@ -1101,8 +1179,8 @@ TEST_CASE("6502 instructions tests")
                         0x01, 0x08, 0x2C, 0x01, 0x02, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0xA3);
                 CHECK(cpu->x() == 0x8F);
@@ -1232,8 +1310,8 @@ TEST_CASE("6502 instructions tests")
                         0x51, 0x41, 0x08, 0x48
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x03);
                 CHECK(cpu->x() == 0x30);
@@ -1344,8 +1422,8 @@ TEST_CASE("6502 instructions tests")
                         0x7F, 0x69, 0x01, 0x08, 0xB8, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x80);
                 CHECK(cpu->x() == 0x00);
@@ -1421,8 +1499,8 @@ TEST_CASE("6502 instructions tests")
                         0x5E, 0x00, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x4B);
                 CHECK(cpu->x() == 0x02);
@@ -1524,8 +1602,8 @@ TEST_CASE("6502 instructions tests")
                         0x11, 0x41, 0x08, 0x48
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x23);
                 CHECK(cpu->x() == 0x30);
@@ -1652,8 +1730,8 @@ TEST_CASE("6502 instructions tests")
                         0x48, 0xC8, 0x98, 0x48
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0xE2);
                 CHECK(cpu->x() == 0xE2);
@@ -1732,8 +1810,8 @@ TEST_CASE("6502 instructions tests")
                         0x3E, 0x00, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x2C);
                 CHECK(cpu->x() == 0x02);
@@ -1803,8 +1881,8 @@ TEST_CASE("6502 instructions tests")
                         0x7E, 0x00, 0x02
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x4B);
                 CHECK(cpu->x() == 0x02);
@@ -1909,8 +1987,8 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0xD1, 0x41, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x03);
                 CHECK(cpu->x() == 0x30);
@@ -2023,8 +2101,8 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x10);
@@ -2131,8 +2209,8 @@ TEST_CASE("6502 instructions tests")
                         0x02, 0x02, 0x08
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x00);
@@ -2203,8 +2281,8 @@ TEST_CASE("6502 instructions tests")
                         0x4C, 0x05, 0x06, 0xA9, 0x01, 0xA9, 0x00
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x00);
                 CHECK(cpu->x() == 0x00);
@@ -2312,8 +2390,8 @@ TEST_CASE("6502 instructions tests")
                         0xEA
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0x02);
                 CHECK(cpu->x() == 0x0A);
@@ -2376,8 +2454,8 @@ TEST_CASE("6502 instructions tests")
                         0x1A, 0x06, 0xEA
                 };
 
-                TestMemory test_memory(program);
-                std::unique_ptr cpu = execute_example_program(test_memory, program.size());
+                ExampleMemory example_memory(program);
+                std::unique_ptr cpu = execute_example_program(example_memory, program.size());
 
                 CHECK(cpu->a() == 0xFF);
                 CHECK(cpu->x() == 0x00);

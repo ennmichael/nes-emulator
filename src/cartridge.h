@@ -28,11 +28,11 @@ public:
 
 class Cartridge {
 public: 
-        static unsigned constexpr header_size = 0x10;static Address constexpr prg_rom_bank_size = 0x4000;
-
+        static unsigned constexpr header_size = 0x10;
+        static Address constexpr prg_rom_bank_size = 0x4000;
         static Address constexpr prg_rom_lower_bank_start = 0x8000;
         static Address constexpr prg_rom_lower_bank_end = prg_rom_lower_bank_start + prg_rom_bank_size - 1;
-        static Address constexpr prg_rom_upper_bank_start = prg_rom_lower_bank_end;
+        static Address constexpr prg_rom_upper_bank_start = prg_rom_lower_bank_end + 1;
         static Address constexpr prg_rom_upper_bank_end = prg_rom_upper_bank_start + prg_rom_bank_size - 1;
 
         explicit Cartridge(std::string const& path);

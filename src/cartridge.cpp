@@ -9,7 +9,7 @@ using namespace std::string_literals;
 namespace Emulator {
 
 MemoryMapperNotSupported::MemoryMapperNotSupported(Byte id) noexcept
-        : runtime_error("RAM mapper " + std::to_string(id) + " not supported.")
+        : runtime_error("Memory mapper " + std::to_string(id) + " not supported.")
 {}
 
 Cartridge::Cartridge(std::string const& path)
@@ -164,7 +164,7 @@ bool NROM::address_is_readable_impl(Address address) const noexcept
         return is_prg_ram(address) || Cartridge::is_prg_rom(address);
 }
 
-// TODO: I don't know how I should handle CHR-ROM. Something with the PPU?
+// TODO Handling the CHR-RAM?
 
 void NROM::write_byte_impl(Address address, Byte byte)
 {

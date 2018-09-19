@@ -4,10 +4,32 @@
 
 namespace Emulator {
 
+namespace {
+
+unsigned constexpr pixel_width = 2;
+unsigned constexpr pixel_height = 2;
+
+void render_pixel(Sdl::Renderer& renderer, Sdl::Color color, unsigned x, unsigned y)
+{
+        Sdl::Rect const rect {
+                .x = static_cast<int>(x * pixel_width),
+                .y = static_cast<int>(y * pixel_height),
+                .w = pixel_width,
+                .h = pixel_height
+        };
+        Sdl::render_filled_rect(renderer, rect, color);
+}
+
+}
+
+UnknownColor::UnknownColor(Byte nes_color) noexcept
+        : runtime_error("Unknown NES color " + format_hex(nes_color))
+{}
+
 void render_screen(Sdl::Renderer& renderer, Screen const& screen)
 {
-        for (int y = 0; y < screen_height; ++y) {
-                for (int x = 0; x < screen_width; ++x) {
+        for (unsigned y = 0; y < screen_height; ++y) {
+                for (unsigned x = 0; x < screen_width; ++x) {
                         auto const nes_color = screen[x][y];
                         auto const rgb_color = nes_color_to_rgb(nes_color);
                         render_pixel(renderer, rgb_color, x, y);
@@ -15,21 +37,7 @@ void render_screen(Sdl::Renderer& renderer, Screen const& screen)
         }
 }
 
-void render_pixel(Sdl::Renderer& renderer, Sdl::Color color, int x, int y)
-{
-        unsigned constexpr pixel_width = 2u;
-        unsigned constexpr pixel_height = 2u;
-        Rect const rect {
-                .x = x,
-                .y = y,
-                .w = pixel_width,
-                .h = pixel_height
-        };
-
-        render_filled_rect(renderer, rect, color);
-}
-
-Sdl::Color nes_color_to_rgb(Byte nes_color) noexcept
+Sdl::Color nes_color_to_rgb(Byte nes_color)
 {
     switch (nes_color) {
             case 0x00: return {.r = 0x6D, .g = 0x6D, .b = 0x6D, .a = 0xFF};
@@ -96,7 +104,8 @@ Sdl::Color nes_color_to_rgb(Byte nes_color) noexcept
             case 0x3D: return {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF};
             case 0x3E: return {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF};
             case 0x3F: return {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF};
-            default: throw UnknownColor(nes_color);
+            //default: throw UnknownColor(nes_color);
+            default: return {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF};
     }
 }
 

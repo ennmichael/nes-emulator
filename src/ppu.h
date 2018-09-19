@@ -8,18 +8,6 @@
 
 namespace Emulator {
 
-template <class T, std::size_t W1, std::size_t W2, std::size_t H1, std::size_t H2>
-void insert_matrix(Matrix<T, W1, H1> const& source,
-                   Matrix<T, W2, H2>& destination,
-                   std::size_t x = 0, std::size_t y = 0) noexcept
-{
-        for (std::size_t i = 0; i < W1; ++i) {
-                for (std::size_t j = 0; j < H1; ++j) {
-                        destination[j + y][i + x] = source[j][i];
-                }
-        }
-}
-
 std::size_t constexpr tile_width = 8;
 std::size_t constexpr tile_height = 8;
 using Tile = Matrix<Byte, tile_width, tile_height>;
@@ -123,7 +111,7 @@ public:
         void write_byte(Byte byte) noexcept;
         void write_address(Address value) noexcept;
         void increment(Address offset) noexcept;
-        Address read_address() const noexcept;
+        Address read_whole() const noexcept;
         Byte read_low_byte() const noexcept;
         Byte read_high_byte() const noexcept;
         bool complete() const noexcept;
@@ -157,9 +145,15 @@ public:
 
         void vblank_started();
         void vblank_finished();
+        Byte read_vram_byte(Address address);
+        Byte read_oam_byte(Address address);
+        Address read_vram_address_register() const noexcept;
+        // Read the what now? Might want to use this in the DMA function
+        // return oam_address_ * 0x100 (I think)
+        // Address read_oam_address_register() const noexcept;
 
         Address base_name_table_address() const noexcept;
-        Address address_increment_offset() const noexcept;
+        Address vram_address_increment_offset() const noexcept;
         Address sprite_pattern_table_address() const noexcept;
         Address background_pattern_table_address() const noexcept;
         unsigned sprite_height() const noexcept;
@@ -171,7 +165,7 @@ public:
         bool show_sprites() const noexcept;
         bool in_vblank() const noexcept;
 
-        Screen paint_screen();
+        Screen current_screen();
 
 protected:
         bool address_is_writable_impl(Address address) const noexcept override;
@@ -195,10 +189,10 @@ private:
         ByteBitset control_ = 0;
         ByteBitset mask_ = 0;
         ByteBitset status_ = 0;
-        Byte oam_address_ = 0;
+        Address oam_address_ = 0;
         DoubleRegister scroll_;
         DoubleRegister vram_address_;
-        Byte vram_data_buffer_ = 0;
+        Byte vram_data_buffer_ = 0; // Rename -> vram_read_buffer_
         VRAM vram_;
         OAM oam_ {0};
         ReadableMemory& dma_memory_;

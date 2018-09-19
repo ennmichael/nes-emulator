@@ -26,6 +26,7 @@ using Window = SDL_Window;
 using Renderer = SDL_Renderer;
 using Rect = SDL_Rect;
 using Event = SDL_Event;
+using Ticks = Uint32;
 using KeyboardEvent = SDL_KeyboardEvent;
 using OptionalEvent = std::optional<Event>;
 using KeyboardState = std::uint8_t const*;
@@ -104,6 +105,8 @@ enum class Flip {
 };
 
 OptionalEvent poll_event();
+Ticks get_ticks() noexcept;
+bool quit_requested() noexcept;
 
 }
 
