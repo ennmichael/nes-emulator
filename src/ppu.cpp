@@ -166,6 +166,11 @@ Address PPU::read_vram_address_register() const noexcept
         return vram_address_.read_whole();
 }
 
+Byte PPU::read_oam_address_register() const noexcept
+{
+        return oam_address_;
+}
+
 Address PPU::base_name_table_address() const noexcept
 {
         Address const mult = control_.to_ulong() & 0x03;
@@ -275,7 +280,7 @@ void PPU::write_byte_impl(Address address, Byte byte)
 
                 case oam_data_register:
                         oam_[oam_address_] = byte;
-                        increment_oam_address();
+                        ++oam_address_;
                         break;
 
                 case scroll_register:
@@ -417,11 +422,6 @@ Byte PPU::sprite_color(unsigned palette_index) noexcept
 }
 */
 
-void PPU::increment_oam_address() noexcept
-{
-        ++oam_address_;
-}
-
 void PPU::increment_vram_address() noexcept
 {
         vram_address_.increment(vram_address_increment_offset());
@@ -429,7 +429,7 @@ void PPU::increment_vram_address() noexcept
 
 void PPU::execute_dma(Byte source)
 {
-        for (Address i = oam_address_; i < static_cast<Address>(oam_address_) + oam_size; ++i) {
+        for (Address i = oam_address_; i < oam_address_ + oam_size; ++i) {
                 Address const j = i % byte_max;
                 Address const source_address = source * oam_size + j;
                 oam_[j] = dma_memory_.read_byte(source_address);

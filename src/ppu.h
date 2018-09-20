@@ -148,9 +148,7 @@ public:
         Byte read_vram_byte(Address address);
         Byte read_oam_byte(Address address);
         Address read_vram_address_register() const noexcept;
-        // Read the what now? Might want to use this in the DMA function
-        // return oam_address_ * 0x100 (I think)
-        // Address read_oam_address_register() const noexcept;
+        Byte read_oam_address_register() const noexcept;
 
         Address base_name_table_address() const noexcept;
         Address vram_address_increment_offset() const noexcept;
@@ -182,14 +180,13 @@ private:
         void paint_sprites(Screen& screen);
         void paint_background_tile(Screen& screen, Address palette_address, Byte high_palette_index_bits,
                                    Byte x, Byte y, Tile const& tile);
-        void increment_oam_address() noexcept;
         void increment_vram_address() noexcept;
         void execute_dma(Byte source);
 
         ByteBitset control_ = 0;
         ByteBitset mask_ = 0;
         ByteBitset status_ = 0;
-        Address oam_address_ = 0;
+        Byte oam_address_ = 0;
         DoubleRegister scroll_;
         DoubleRegister vram_address_;
         Byte vram_data_buffer_ = 0; // Rename -> vram_read_buffer_

@@ -356,7 +356,39 @@ TEST_CASE("PPU registers tests")
 
         SECTION("OAM address/data registers tests")
         {
-                // TODO
+                ppu.write_byte(0x2003, 0x00);
+                CHECK(ppu.read_oam_address_register() == 0x00);
+                ppu.write_byte(0x2004, 1);
+                CHECK(ppu.read_oam_address_register() == 0x01);
+                ppu.write_byte(0x2004, 2);
+                CHECK(ppu.read_oam_address_register() == 0x02);
+                ppu.write_byte(0x2004, 3);
+                CHECK(ppu.read_oam_address_register() == 0x03);
+                ppu.write_byte(0x2004, 4);
+                CHECK(ppu.read_oam_address_register() == 0x04);
+                ppu.write_byte(0x2004, 5);
+                CHECK(ppu.read_oam_address_register() == 0x05);
+
+                ppu.write_byte(0x2003, 0x00);
+                CHECK(ppu.read_oam_address_register() == 0x00);
+                CHECK(ppu.read_byte(0x2004) == 1);
+                CHECK(ppu.read_oam_address_register() == 0x00);
+                ppu.write_byte(0x2003, 0x01);
+                CHECK(ppu.read_oam_address_register() == 0x01);
+                CHECK(ppu.read_byte(0x2004) == 2);
+                CHECK(ppu.read_oam_address_register() == 0x01);
+                ppu.write_byte(0x2003, 0x02);
+                CHECK(ppu.read_oam_address_register() == 0x02);
+                CHECK(ppu.read_byte(0x2004) == 3);
+                CHECK(ppu.read_oam_address_register() == 0x02);
+                ppu.write_byte(0x2003, 0x03);
+                CHECK(ppu.read_oam_address_register() == 0x03);
+                CHECK(ppu.read_byte(0x2004) == 4);
+                CHECK(ppu.read_oam_address_register() == 0x03);
+                ppu.write_byte(0x2003, 0x04);
+                CHECK(ppu.read_oam_address_register() == 0x04);
+                CHECK(ppu.read_byte(0x2004) == 5);
+                CHECK(ppu.read_oam_address_register() == 0x04);
         }
         
         SECTION("OAM DMA tests")
