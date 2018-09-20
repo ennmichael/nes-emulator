@@ -103,7 +103,7 @@ struct Sprite {
 
 using Sprites = std::array<Sprite, 64>;
 
-static Address constexpr oam_size = 0x0100;
+static unsigned constexpr oam_size = 0x0100;
 using OAM = std::array<Byte, oam_size>;
 
 class DoubleRegister {
@@ -122,6 +122,11 @@ private:
 
         Address value_ = 0;
         bool complete_ = true;
+};
+
+class UnsupportedDMA : std::runtime_error {
+public:
+        using runtime_error::runtime_error;
 };
 
 class PPU : public Memory {

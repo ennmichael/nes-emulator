@@ -170,7 +170,7 @@ TEST_CASE("DoubleRegister tests")
 
 TEST_CASE("PPU registers tests")
 {
-        TestMemory<100> test_memory(0);
+        TestMemory<Emulator::oam_size * 2> test_memory(0);
         Emulator::PPU ppu(Emulator::Mirroring::horizontal, test_memory);
 
         SECTION("Control register tests")
@@ -393,7 +393,15 @@ TEST_CASE("PPU registers tests")
         
         SECTION("OAM DMA tests")
         {
-                // TODO
+                Emulator::Address constexpr start = 0x100;
+                for (Emulator::Address i = start; i < start + Emulator::oam_size; ++i)
+                        test_memory.write_byte(i, i);
+                ppu.write_byte(0x2003, 0x00);
+                ppu.write_byte(0x4014, 1);
+                for (unsigned i = 0; i < Emulator::oam_size; ++i) {
+                        auto const address = static_cast<Emulator::Byte>(i);
+                        CHECK(ppu.read_oam_byte(address) == address);
+                }
         }
 }
 

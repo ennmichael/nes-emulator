@@ -296,6 +296,10 @@ void PPU::write_byte_impl(Address address, Byte byte)
                         increment_vram_address();
                         break;
 
+                case oam_dma_register:
+                        execute_dma(byte);
+                        break;
+
                 default:
                         assert(false);
                         break;
@@ -429,11 +433,13 @@ void PPU::increment_vram_address() noexcept
 
 void PPU::execute_dma(Byte source)
 {
-        for (Address i = oam_address_; i < oam_address_ + oam_size; ++i) {
-                Address const j = i % byte_max;
-                Address const source_address = source * oam_size + j;
-                oam_[j] = dma_memory_.read_byte(source_address);
+        if (oam_address_ != 0x00) {
+                throw UnsupportedDMA("Can't execute DMA when "s +
+                                     format_hex(oam_address_register) +
+                                     " register has a nonzero value"s);
         }
+        for (Address i = 0; i < oam_size; ++i)
+                oam_[i] = dma_memory_.read_byte(source * oam_size + i);
 }
 
 }
